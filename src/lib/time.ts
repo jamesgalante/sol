@@ -30,10 +30,18 @@ export function nightKey(ts: number): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
 }
 
+/**
+ * The most recent night from "now"'s perspective: before 11am that's the
+ * night still ongoing; after 11am it's the night that ended this morning.
+ */
+export function lastNightKey(now: number = Date.now()): string {
+  return new Date(now).getHours() < 11 ? nightKey(now) : nightKey(now - 24 * 3600e3)
+}
+
 /** Label for a night group: "Last night", "FRI · JUL 18", … */
 export function nightLabel(ts: number, now: number = Date.now()): string {
   const key = nightKey(ts)
-  if (key === nightKey(now)) return 'Last night'
+  if (key === lastNightKey(now)) return 'Last night'
   const d = new Date(ts)
   if (d.getHours() < 11) d.setDate(d.getDate() - 1)
   return formatNight(d.getTime())

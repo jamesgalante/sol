@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { startRecording, speechSupported, micDenied, type RecordingController } from '../lib/recorder'
 import { categorize, titleFrom } from '../lib/categorize'
 import { saveDream, listDreams } from '../lib/db'
-import { formatDuration, nightKey } from '../lib/time'
+import { formatDuration, nightKey, lastNightKey } from '../lib/time'
 import type { Dream } from '../lib/types'
 
 export function Record({ onSaved }: { onSaved: (id: string) => void }) {
@@ -17,7 +17,7 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
   useEffect(() => {
     micDenied().then(setBlocked)
     listDreams().then((dreams) => {
-      const lastNight = dreams.filter((d) => nightKey(d.createdAt) === nightKey(Date.now())).length
+      const lastNight = dreams.filter((d) => nightKey(d.createdAt) === lastNightKey()).length
       setStats({ total: dreams.length, lastNight })
     })
   }, [])
