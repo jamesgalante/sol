@@ -5,11 +5,13 @@ import { Nav } from './components/Nav'
 import { Record } from './screens/Record'
 import { Journal } from './screens/Journal'
 import { DreamDetail } from './screens/DreamDetail'
+import { Stats } from './screens/Stats'
 import { Circle } from './screens/Circle'
 
 function viewFromHash(): View {
   const h = window.location.hash.slice(1)
   if (h === 'journal') return { name: 'journal' }
+  if (h === 'stats') return { name: 'stats' }
   if (h === 'circle') return { name: 'circle' }
   if (h.startsWith('dream/')) return { name: 'dream', id: h.slice('dream/'.length) }
   return { name: 'record' }
@@ -43,6 +45,7 @@ export default function App() {
       )}
       {view.name === 'journal' && <Journal onNavigate={navigate} />}
       {view.name === 'dream' && <DreamDetail id={view.id} onNavigate={navigate} />}
+      {view.name === 'stats' && <Stats />}
       {view.name === 'circle' && <Circle />}
       <Nav view={view} onNavigate={navigate} />
     </div>

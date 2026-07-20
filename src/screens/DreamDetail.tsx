@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getDream, getAudio, saveDream, deleteDream } from '../lib/db'
-import { categorize, titleFrom } from '../lib/categorize'
+import { categorize, detectMood, dreamMood, titleFrom } from '../lib/categorize'
+import { Cloud, MOOD_LABEL } from '../components/Cloud'
 import { formatClock, formatDuration, nightLabel } from '../lib/time'
 import type { Dream, View } from '../lib/types'
 
@@ -32,6 +33,7 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
       transcript,
       title: titleFrom(transcript),
       tags: categorize(transcript),
+      mood: detectMood(transcript),
     }
     await saveDream(updated)
     setDream(updated)
@@ -51,6 +53,7 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
       </button>
       <h1 className="detail-title">{dream.title}</h1>
       <div className="detail-meta">
+        <Cloud mood={dreamMood(dream)} size={14} /> {MOOD_LABEL[dreamMood(dream)].toUpperCase()} ·{' '}
         {nightLabel(dream.createdAt).toUpperCase()} · {formatClock(dream.createdAt)} ·{' '}
         {formatDuration(dream.durationSec)}
       </div>

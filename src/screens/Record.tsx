@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { startRecording, speechSupported, micDenied, type RecordingController } from '../lib/recorder'
-import { categorize, titleFrom } from '../lib/categorize'
+import { categorize, detectMood, titleFrom } from '../lib/categorize'
 import { saveDream, listDreams } from '../lib/db'
 import { formatDuration, nightKey, lastNightKey } from '../lib/time'
 import type { Dream } from '../lib/types'
@@ -50,6 +50,7 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
         transcript: result.transcript,
         title: titleFrom(result.transcript),
         tags: categorize(result.transcript),
+        mood: detectMood(result.transcript),
         hasAudio: result.audio !== null,
       }
       await saveDream(dream, result.audio ?? undefined)

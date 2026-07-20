@@ -17,6 +17,11 @@
   --horizon-rose: rgba(197, 142, 142, 0.1);
   --danger: #c58e8e;
 
+  /* mood — diverging: nightmare ← neutral → bright (validated vs --night) */
+  --mood-dark: #d07f7f;
+  --mood-neutral: #8b90a5;
+  --mood-bright: #ecb35f;
+
   /* type */
   --font-display: 'Cormorant Garamond', Georgia, serif;
   --font-ui: 'Instrument Sans', -apple-system, system-ui, sans-serif;

@@ -3,6 +3,7 @@ import type { View } from '../lib/types'
 const ITEMS = [
   { name: 'record', label: 'record' },
   { name: 'journal', label: 'journal' },
+  { name: 'stats', label: 'stats' },
   { name: 'circle', label: 'circle' },
 ] as const
 
