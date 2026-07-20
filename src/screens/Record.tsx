@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { startRecording, speechSupported, micDenied, type RecordingController } from '../lib/recorder'
 import { categorize, detectMood, titleFrom } from '../lib/categorize'
 import { saveDream, listDreams } from '../lib/db'
+import { pushDream } from '../lib/sync'
 import { formatDuration, nightKey, lastNightKey } from '../lib/time'
 import type { Dream } from '../lib/types'
 
@@ -54,6 +55,7 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
         hasAudio: result.audio !== null,
       }
       await saveDream(dream, result.audio ?? undefined)
+      pushDream(dream) // fire-and-forget cloud mirror (private by default)
       setSaving(false)
       onSaved(dream.id)
     }

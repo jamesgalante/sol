@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getDream, getAudio, saveDream, deleteDream } from '../lib/db'
+import { cloudEnabled } from '../lib/supabase'
+import { pushDream, deleteCloudDream, currentUserId } from '../lib/sync'
 import { categorize, detectMood, dreamMood, titleFrom } from '../lib/categorize'
 import { Cloud, MOOD_LABEL } from '../components/Cloud'
 import { formatClock, formatDuration, nightLabel } from '../lib/time'
@@ -9,6 +11,11 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
   const [dream, setDream] = useState<Dream | null>(null)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
+  const [signedIn, setSignedIn] = useState(false)
+
+  useEffect(() => {
+    if (cloudEnabled()) currentUserId().then((id) => setSignedIn(Boolean(id)))
+  }, [])
 
   useEffect(() => {
     getDream(id).then((d) => {
@@ -36,13 +43,22 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
       mood: detectMood(transcript),
     }
     await saveDream(updated)
+    pushDream(updated)
     setDream(updated)
     setEditing(false)
+  }
+
+  async function toggleShare() {
+    const updated: Dream = { ...dream!, shared: !dream!.shared }
+    await saveDream(updated)
+    pushDream(updated)
+    setDream(updated)
   }
 
   async function remove() {
     if (!confirm('Let this one fade?')) return
     await deleteDream(dream!.id)
+    deleteCloudDream(dream!.id)
     onNavigate({ name: 'journal' })
   }
 
@@ -110,6 +126,11 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
             >
               edit
             </button>
+            {signedIn && (
+              <button className="quiet-btn" onClick={toggleShare}>
+                {dream.shared ? 'shared ✓ · make private' : 'share to circle'}
+              </button>
+            )}
             <button className="quiet-btn danger" onClick={remove}>
               let it fade
             </button>
