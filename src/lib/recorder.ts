@@ -41,6 +41,20 @@ export function speechSupported(): boolean {
   )
 }
 
+/**
+ * True when the mic is already hard-blocked (e.g. embedded browsers).
+ * Lets us skip getUserMedia/speech entirely so no permission popup fires.
+ * "prompt" and "granted" both return false — first-time prompts are wanted.
+ */
+export async function micDenied(): Promise<boolean> {
+  try {
+    const p = await (navigator.permissions as any).query({ name: 'microphone' })
+    return p.state === 'denied'
+  } catch {
+    return false // API unsupported — behave as before
+  }
+}
+
 export function startRecording(): RecordingController {
   const startedAt = Date.now()
   let finalText = ''
@@ -48,63 +62,71 @@ export function startRecording(): RecordingController {
   let transcriptCb: ((f: string, i: string) => void) | null = null
   let stopped = false
 
-  // --- audio: acquire in the background, never block start ---
+  // --- audio + speech: acquire in the background, never block start.
+  // If the mic is hard-blocked, request nothing — avoids permission popups
+  // in embedded browsers; the user types the dream instead.
   let recorder: MediaRecorder | null = null
   let stream: MediaStream | null = null
-  const chunks: Blob[] = []
-  navigator.mediaDevices
-    .getUserMedia({ audio: true })
-    .then((s) => {
-      if (stopped) {
-        // permission granted after the dream ended — release the mic
-        s.getTracks().forEach((t) => t.stop())
-        return
-      }
-      stream = s
-      recorder = new MediaRecorder(s)
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data)
-      }
-      recorder.start()
-    })
-    .catch(() => {
-      // mic denied — speech may still work, or the user can type
-    })
-
-  // --- speech ---
-  const speech = speechRecognition()
+  let speech: SpeechRecognitionLike | null = null
   let speechActive = false
-  if (speech) {
-    speech.continuous = true
-    speech.interimResults = true
-    speech.lang = 'en-US'
-    speech.onresult = (e: any) => {
-      interimText = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i]
-        if (r.isFinal) finalText += r[0].transcript + ' '
-        else interimText += r[0].transcript
+  const chunks: Blob[] = []
+
+  micDenied().then((denied) => {
+    if (denied || stopped) return
+
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((s) => {
+        if (stopped) {
+          // permission granted after the dream ended — release the mic
+          s.getTracks().forEach((t) => t.stop())
+          return
+        }
+        stream = s
+        recorder = new MediaRecorder(s)
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunks.push(e.data)
+        }
+        recorder.start()
+      })
+      .catch(() => {
+        // mic denied — speech may still work, or the user can type
+      })
+
+    speech = speechRecognition()
+    if (speech) {
+      const sp = speech
+      sp.continuous = true
+      sp.interimResults = true
+      sp.lang = 'en-US'
+      sp.onresult = (e: any) => {
+        interimText = ''
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i]
+          if (r.isFinal) finalText += r[0].transcript + ' '
+          else interimText += r[0].transcript
+        }
+        transcriptCb?.(finalText, interimText)
       }
-      transcriptCb?.(finalText, interimText)
-    }
-    // mobile Safari ends recognition on pauses — restart while still recording
-    speech.onend = () => {
-      if (speechActive) {
-        try {
-          speech.start()
-        } catch {
-          /* already started */
+      // mobile Safari ends recognition on pauses — restart while still recording
+      sp.onend = () => {
+        if (speechActive) {
+          try {
+            sp.start()
+          } catch {
+            /* already started */
+          }
         }
       }
+      sp.onerror = () => {}
+      try {
+        sp.start()
+        speechActive = true
+      } catch {
+        /* unsupported after all */
+      }
     }
-    speech.onerror = () => {}
-    try {
-      speech.start()
-      speechActive = true
-    } catch {
-      /* unsupported after all */
-    }
-  }
+  })
 
   return {
     onTranscript(cb) {

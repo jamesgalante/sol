@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { startRecording, speechSupported, type RecordingController } from '../lib/recorder'
+import { startRecording, speechSupported, micDenied, type RecordingController } from '../lib/recorder'
 import { categorize, titleFrom } from '../lib/categorize'
 import { saveDream, listDreams } from '../lib/db'
 import { formatDuration, nightKey } from '../lib/time'
@@ -11,9 +11,11 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
   const [elapsed, setElapsed] = useState(0)
   const [live, setLive] = useState({ final: '', interim: '' })
   const [stats, setStats] = useState<{ total: number; lastNight: number } | null>(null)
+  const [blocked, setBlocked] = useState(false)
   const controller = useRef<RecordingController | null>(null)
 
   useEffect(() => {
+    micDenied().then(setBlocked)
     listDreams().then((dreams) => {
       const lastNight = dreams.filter((d) => nightKey(d.createdAt) === nightKey(Date.now())).length
       setStats({ total: dreams.length, lastNight })
@@ -86,9 +88,11 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
         <div className="record-hint">
           {saving
             ? 'Keeping it…'
-            : speechSupported()
-              ? 'Tap the sun and speak'
-              : 'Tap the sun to record — you can type the words after'}
+            : blocked
+              ? 'No mic in this browser — tap the sun, type it after'
+              : speechSupported()
+                ? 'Tap the sun and speak'
+                : 'Tap the sun to record — you can type the words after'}
         </div>
       )}
 
