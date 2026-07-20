@@ -1,8 +1,8 @@
 // Minimal offline support for the app shell.
 // Navigations: network-first (so deploys land), cached fallback offline.
 // Hashed /assets/: cache-first (immutable by construction).
-const SHELL_CACHE = 'sol-shell-v1'
-const ASSET_CACHE = 'sol-assets-v1'
+const SHELL_CACHE = 'sol-shell-v2'
+const ASSET_CACHE = 'sol-assets-v2'
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(SHELL_CACHE).then((c) => c.add('/')))

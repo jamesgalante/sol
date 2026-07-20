@@ -62,8 +62,8 @@ npm install
 npm run dev          # http://localhost:5183
 ```
 
-Works fully offline with no configuration (Circle shows a preview). To enable
-the social layer, create a Supabase project, run
+Works fully offline with no configuration (Circle explains itself but can't
+sign in). To enable the social layer, create a Supabase project, run
 `supabase/migrations/001_init.sql` in its SQL editor, and add to `.env.local`:
 
 ```
