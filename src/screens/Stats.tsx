@@ -16,6 +16,7 @@ interface Computed {
   topTags: Array<[string, number]>
   recurring: Array<[string, number]>
   hours: Array<{ label: string; count: number }>
+  weeks: Array<{ label: string; count: number }>
 }
 
 function compute(dreams: Dream[]): Computed {
@@ -54,9 +55,20 @@ function compute(dreams: Dream[]): Computed {
     }).length,
   }))
 
+  // recall trend: dreams per week, oldest → newest, last 6 weeks
+  const weeks = Array.from({ length: 6 }, (_, i) => {
+    const end = Date.now() - (5 - i) * 7 * DAY
+    const start = end - 7 * DAY
+    return {
+      label: i === 5 ? 'this wk' : `${5 - i}w ago`,
+      count: dreams.filter((d) => d.createdAt > start && d.createdAt <= end).length,
+    }
+  })
+
   return {
     total: dreams.length,
     streak,
+    weeks,
     perNight: last30.length / 30,
     spokenSec: dreams.reduce((s, d) => s + d.durationSec, 0),
     moods,
@@ -123,6 +135,17 @@ export function Stats() {
           <div className="tile-label">spoken</div>
         </div>
       </div>
+
+      <section className="stat-section">
+        <div className="stat-heading">Recall — dreams per week</div>
+        {s.weeks.map((w) => (
+          <Bar key={w.label} label={w.label} count={w.count} max={Math.max(...s.weeks.map((x) => x.count))} />
+        ))}
+        <p className="stat-note">
+          Recall grows with practice — most people remember more the longer they
+          keep speaking them.
+        </p>
+      </section>
 
       <section className="stat-section">
         <div className="stat-heading">How they felt</div>
