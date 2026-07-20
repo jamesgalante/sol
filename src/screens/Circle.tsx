@@ -292,6 +292,13 @@ function LiveCircle({ profile }: { profile: Profile }) {
         </section>
       )}
 
+      {friends.length === 0 && (
+        <p className="stat-note" style={{ marginBottom: '2rem' }}>
+          Tell a friend to open the app, sign in, and claim a name — then follow
+          each other here.
+        </p>
+      )}
+
       {friends.length > 0 && (
         <section className="stat-section">
           <div className="stat-heading">Their nights</div>
@@ -315,6 +322,12 @@ function LiveCircle({ profile }: { profile: Profile }) {
           </p>
         </section>
       )}
+
+      <div className="detail-actions">
+        <button className="quiet-btn" onClick={() => supabase?.auth.signOut()}>
+          sign out
+        </button>
+      </div>
     </div>
   )
 }
