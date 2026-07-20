@@ -17,6 +17,10 @@ operational stuff that doesn't belong there.
 - Auth is email OTP + magic link. The magic-link email template must contain
   `{{ .Token }}` for the 6-digit code path (needed on iOS PWA where the link
   opens Safari, not the installed app). Site URL should be the Vercel URL.
+- Auth emails send via custom SMTP: `soldreamapp@gmail.com` through
+  smtp.gmail.com:465 (Gmail app password, held by James — never in the repo).
+  Supabase's built-in email is limited to ~2/hour; if sign-in emails stop
+  arriving, check the SMTP config and the Auth → Rate Limits page first.
 
 ## Conventions
 
