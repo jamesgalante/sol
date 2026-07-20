@@ -1,0 +1,40 @@
+/* ————————————————————————————————————————————
+   sól · design tokens
+   pre-dawn indigo, one gold sun, hairline structure
+   ———————————————————————————————————————————— */
+:root {
+  /* color */
+  --night: #0a0c13; /* page */
+  --ink: #11141e; /* raised surface */
+  --ink-2: #161a27; /* hover surface */
+  --line: #21263a; /* hairlines */
+  --fog: #8b90a5; /* secondary text */
+  --fog-dim: #565b70; /* tertiary text */
+  --bone: #eae7e0; /* primary text */
+  --dawn: #e4b979; /* the sun — use sparingly */
+  --dawn-deep: #b9884d;
+  --dawn-soft: rgba(228, 185, 121, 0.12);
+  --horizon-rose: rgba(197, 142, 142, 0.1);
+  --danger: #c58e8e;
+
+  /* type */
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-ui: 'Instrument Sans', -apple-system, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'SF Mono', monospace;
+
+  /* scale */
+  --text-xs: 0.6875rem; /* 11 — mono eyebrows, tags */
+  --text-sm: 0.8125rem; /* 13 — meta */
+  --text-base: 0.9375rem; /* 15 — body */
+  --text-lg: 1.375rem; /* 22 — card titles (display) */
+  --text-xl: 2rem; /* 32 — screen titles (display) */
+  --text-2xl: 2.75rem; /* 44 — record prompt (display) */
+
+  /* layout */
+  --col: 30rem; /* content column */
+  --pad: 1.25rem;
+  --nav-h: 3.75rem;
+
+  /* motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
