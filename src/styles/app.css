@@ -198,6 +198,9 @@ textarea {
 .record-live .interim {
   color: var(--fog-dim);
 }
+.write-instead {
+  margin-top: 1rem;
+}
 .record-stats {
   position: absolute;
   bottom: 1rem;

@@ -63,6 +63,21 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
 
   const liveText = (live.final + ' ' + live.interim).trim()
 
+  async function typeInstead() {
+    const dream: Dream = {
+      id: crypto.randomUUID(),
+      createdAt: Date.now(),
+      durationSec: 0,
+      transcript: '',
+      title: 'Untitled dream',
+      tags: [],
+      mood: 'neutral',
+      hasAudio: false,
+    }
+    await saveDream(dream)
+    onSaved(dream.id) // detail opens straight into typing for empty dreams
+  }
+
   return (
     <div className="record">
       <div className="record-eyebrow">{recording ? 'LISTENING' : 'BEFORE IT FADES'}</div>
@@ -97,6 +112,12 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
                 ? 'Tap the sun and speak'
                 : 'Tap the sun to record — you can type the words after'}
         </div>
+      )}
+
+      {!recording && !saving && (
+        <button className="quiet-btn write-instead" onClick={typeInstead}>
+          or write it instead
+        </button>
       )}
 
       {!recording && stats && stats.total > 0 && (

@@ -107,7 +107,13 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
             </button>
             <button
               className="quiet-btn"
-              onClick={() => {
+              onClick={async () => {
+                if (!dream.transcript) {
+                  // canceling a never-written dream discards it entirely
+                  await deleteDream(dream.id)
+                  onNavigate({ name: 'journal' })
+                  return
+                }
                 setEditing(false)
                 setDraft('')
               }}

@@ -110,12 +110,13 @@ function SignIn() {
   }
 
   async function verify() {
-    if (!supabase || code.length < 6) return
+    const token = code.replace(/\D/g, '')
+    if (!supabase || token.length < 6) return
     setBusy(true)
     setError('')
-    const { error } = await supabase.auth.verifyOtp({ email, token: code.trim(), type: 'email' })
+    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token, type: 'email' })
     setBusy(false)
-    if (error) setError('That code didn’t work — check it or tap the email link instead.')
+    if (error) setError(`${error.message} — codes expire and each new email replaces the old one; try “send code” again and use the newest email.`)
   }
 
   return (
