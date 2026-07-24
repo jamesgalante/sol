@@ -148,7 +148,7 @@ function SignIn() {
             <input
               className="auth-input"
               inputMode="numeric"
-              placeholder="6-digit code"
+              placeholder="8-digit code"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && verify()}
