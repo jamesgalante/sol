@@ -12,8 +12,10 @@ export interface Dream {
   tags: string[]
   mood?: Mood
   hasAudio: boolean
-  /** future Circle sync — dreams are private unless explicitly shared */
+  /** visible to your circle's feed — dreams are private unless shared */
   shared?: boolean
+  /** on display on your profile, visible to any signed-in visitor */
+  pinned?: boolean
 }
 
 export type View =
@@ -22,4 +24,5 @@ export type View =
   | { name: 'journal' }
   | { name: 'stats' }
   | { name: 'circle' }
+  | { name: 'profile'; username: string }
   | { name: 'dream'; id: string }

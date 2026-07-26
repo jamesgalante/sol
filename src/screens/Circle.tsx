@@ -19,9 +19,9 @@ import {
 import { listDreams } from '../lib/db'
 import { formatClock } from '../lib/time'
 import { Cloud } from '../components/Cloud'
-import type { Mood } from '../lib/types'
+import type { Mood, View } from '../lib/types'
 
-export function Circle() {
+export function Circle({ onNavigate }: { onNavigate: (v: View) => void }) {
   const [session, setSession] = useState<boolean | null>(cloudEnabled() ? null : false)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [checked, setChecked] = useState(false)
@@ -85,11 +85,11 @@ export function Circle() {
     )
   }
 
-  return <LiveCircle profile={profile} />
+  return <LiveCircle profile={profile} onNavigate={onNavigate} />
 }
 
 /* ——— the real circle ——— */
-function LiveCircle({ profile }: { profile: Profile }) {
+function LiveCircle({ profile, onNavigate }: { profile: Profile; onNavigate: (v: View) => void }) {
   const [friends, setFriends] = useState<Array<Profile & { stats?: FriendStats | null }>>([])
   const [dreams, setDreams] = useState<FeedDream[] | null>(null)
   const [name, setName] = useState('')
@@ -122,7 +122,12 @@ function LiveCircle({ profile }: { profile: Profile }) {
 
   return (
     <div>
-      <div className="preview-band">SIGNED IN AS @{profile.username.toUpperCase()}</div>
+      <button
+        className="preview-band preview-band-link"
+        onClick={() => onNavigate({ name: 'profile', username: profile.username })}
+      >
+        SIGNED IN AS @{profile.username.toUpperCase()} · VIEW PROFILE
+      </button>
       <h1 className="screen-title">Circle</h1>
 
       <div className="auth-card">
@@ -161,7 +166,16 @@ function LiveCircle({ profile }: { profile: Profile }) {
               className="dream-card"
               onClick={() => setOpen(open === d.id ? null : d.id)}
             >
-              <div className="circle-author">@{d.username}</div>
+              <span
+                className="circle-author circle-author-link"
+                role="link"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onNavigate({ name: 'profile', username: d.username })
+                }}
+              >
+                @{d.username}
+              </span>
               <div className="dream-card-title">{d.title}</div>
               <div className="dream-card-meta">
                 <Cloud mood={d.mood as Mood} size={14} />
@@ -192,7 +206,12 @@ function LiveCircle({ profile }: { profile: Profile }) {
           <div className="stat-heading">Their nights</div>
           {friends.map((f) => (
             <div key={f.id} className="friend-row">
-              <span className="friend-name">@{f.username}</span>
+              <button
+                className="friend-name friend-name-link"
+                onClick={() => onNavigate({ name: 'profile', username: f.username })}
+              >
+                @{f.username}
+              </button>
               {f.stats ? (
                 <>
                   <span className="friend-stat">{f.stats.last_week} this week</span>

@@ -8,6 +8,8 @@ import { dreamMood } from './categorize'
 export interface Profile {
   id: string
   username: string
+  display_name?: string | null
+  bio?: string | null
 }
 
 export interface FeedDream {
@@ -38,6 +40,7 @@ function toRow(d: Dream, userId: string) {
     tags: d.tags,
     mood: dreamMood(d),
     shared: d.shared ?? false,
+    pinned: d.pinned ?? false,
   }
 }
 
@@ -47,12 +50,74 @@ export async function currentUserId(): Promise<string | null> {
   return data.session?.user.id ?? null
 }
 
+const PROFILE_COLS = 'id, username, display_name, bio'
+
 export async function myProfile(): Promise<Profile | null> {
   if (!supabase) return null
   const uid = await currentUserId()
   if (!uid) return null
-  const { data } = await supabase.from('profiles').select('id, username').eq('id', uid).maybeSingle()
+  const { data } = await supabase.from('profiles').select(PROFILE_COLS).eq('id', uid).maybeSingle()
   return data
+}
+
+export async function profileByUsername(username: string): Promise<Profile | null> {
+  if (!supabase) return null
+  const { data } = await supabase
+    .from('profiles')
+    .select(PROFILE_COLS)
+    .eq('username', username)
+    .maybeSingle()
+  return data
+}
+
+export async function updateProfile(fields: {
+  display_name?: string | null
+  bio?: string | null
+}): Promise<{ error?: string }> {
+  if (!supabase) return { error: 'offline' }
+  const uid = await currentUserId()
+  if (!uid) return { error: 'not signed in' }
+  const { error } = await supabase.from('profiles').update(fields).eq('id', uid)
+  if (error) {
+    if (error.code === '23514') return { error: 'Too long — 40 chars for name, 200 for bio.' }
+    return { error: error.message }
+  }
+  return {}
+}
+
+/** Dreams a user chose to display on their profile (RLS: pinned only,
+ *  unless it's your own profile — then you see all pinned regardless). */
+export async function pinnedDreams(userId: string): Promise<FeedDream[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('dreams')
+    .select('id, title, created_at, tags, mood, transcript, profiles!dreams_user_id_fkey(username)')
+    .eq('user_id', userId)
+    .eq('pinned', true)
+    .order('created_at', { ascending: false })
+    .limit(20)
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    username: r.profiles?.username ?? '?',
+    title: r.title,
+    createdAt: new Date(r.created_at).getTime(),
+    tags: r.tags ?? [],
+    mood: (r.mood ?? 'neutral') as Mood,
+    transcript: r.transcript,
+  }))
+}
+
+export async function isFollowing(userId: string): Promise<boolean> {
+  if (!supabase) return false
+  const uid = await currentUserId()
+  if (!uid) return false
+  const { data } = await supabase
+    .from('follows')
+    .select('followee')
+    .eq('follower', uid)
+    .eq('followee', userId)
+    .maybeSingle()
+  return Boolean(data)
 }
 
 export async function claimUsername(username: string): Promise<{ error?: string }> {

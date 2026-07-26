@@ -1038,6 +1038,88 @@ textarea {
   white-space: pre-wrap;
 }
 
+/* ——— profile ——— */
+.profile-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.profile-head .detail-title {
+  margin: 1.25rem 0 0.25rem;
+}
+.profile-head .quiet-btn,
+.profile-head .auth-btn {
+  margin-top: 1.5rem;
+  flex-shrink: 0;
+}
+.profile-handle {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+  color: var(--fog-dim);
+}
+.profile-you {
+  color: var(--dawn-deep);
+  margin-left: 0.375rem;
+}
+.profile-bio {
+  font-size: var(--text-base);
+  line-height: 1.65;
+  color: var(--fog);
+  max-width: 40ch;
+  margin-bottom: 1.25rem;
+}
+.profile-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.875rem;
+  margin-bottom: 2rem;
+}
+.profile-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1.5rem;
+}
+.profile-bio-input {
+  min-height: 4.5rem;
+  resize: vertical;
+  font-family: var(--font-ui);
+}
+.profile-empty {
+  display: flex;
+  align-items: center;
+  gap: 1.125rem;
+  padding: 0.75rem 0;
+}
+.profile-empty .stat-note {
+  margin-top: 0;
+}
+.preview-band-link {
+  cursor: pointer;
+  transition: border-color 0.25s var(--ease), color 0.25s var(--ease);
+}
+.preview-band-link:hover {
+  border-color: var(--dawn-deep);
+  color: var(--dawn);
+}
+.circle-author-link,
+.friend-name-link {
+  cursor: pointer;
+  transition: color 0.25s var(--ease);
+}
+.circle-author-link:hover,
+.friend-name-link:hover {
+  color: var(--dawn);
+}
+.friend-name-link {
+  text-align: left;
+  padding: 0;
+}
+
 /* ——— empty states / circle ——— */
 .empty {
   flex: 1;

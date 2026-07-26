@@ -8,6 +8,7 @@ import { DreamDetail } from './screens/DreamDetail'
 import { Stats } from './screens/Stats'
 import { Circle } from './screens/Circle'
 import { Welcome } from './screens/Welcome'
+import { Profile } from './screens/Profile'
 
 const WELCOMED_KEY = 'sol:welcomed'
 
@@ -17,12 +18,14 @@ function viewFromHash(): View {
   if (h === 'stats') return { name: 'stats' }
   if (h === 'circle') return { name: 'circle' }
   if (h.startsWith('dream/')) return { name: 'dream', id: h.slice('dream/'.length) }
+  if (h.startsWith('u/')) return { name: 'profile', username: h.slice('u/'.length) }
   return { name: 'record' }
 }
 
 function hashFor(view: View): string {
   if (view.name === 'record' || view.name === 'welcome') return ''
   if (view.name === 'dream') return `dream/${view.id}`
+  if (view.name === 'profile') return `u/${view.username}`
   return view.name
 }
 
@@ -64,7 +67,8 @@ export default function App() {
       {view.name === 'journal' && <Journal onNavigate={navigate} />}
       {view.name === 'dream' && <DreamDetail id={view.id} onNavigate={navigate} />}
       {view.name === 'stats' && <Stats />}
-      {view.name === 'circle' && <Circle />}
+      {view.name === 'circle' && <Circle onNavigate={navigate} />}
+      {view.name === 'profile' && <Profile username={view.username} onNavigate={navigate} />}
       <Nav view={view} onNavigate={navigate} />
     </div>
   )
