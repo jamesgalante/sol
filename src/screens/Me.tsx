@@ -11,7 +11,8 @@ import type { View } from '../lib/types'
 
 export function Me({ onNavigate }: { onNavigate: (v: View) => void }) {
   const [session, setSession] = useState(false)
-  const [profile, setProfile] = useState<ProfileRow | null>(null)
+  // undefined = still asking the server; null = confirmed no profile yet
+  const [profile, setProfile] = useState<ProfileRow | null | undefined>(undefined)
   const [checked, setChecked] = useState(!cloudEnabled())
 
   useEffect(() => {
@@ -25,11 +26,15 @@ export function Me({ onNavigate }: { onNavigate: (v: View) => void }) {
   }, [])
 
   useEffect(() => {
-    if (session) myProfile().then(setProfile)
-    else setProfile(null)
+    if (session) {
+      setProfile(undefined)
+      myProfile().then(setProfile)
+    } else setProfile(null)
   }, [session])
 
   if (!checked) return null
+  // signed in but profile still loading — render nothing, never a flash
+  if (session && profile === undefined) return null
 
   if (!cloudEnabled() || !session) {
     return (

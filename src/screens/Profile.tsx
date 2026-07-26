@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 import { cloudEnabled, supabase } from '../lib/supabase'
 import {
   follow,
+  followCounts,
+  followers,
   following,
   unfollow,
   isFollowing,
@@ -14,6 +16,7 @@ import {
   profileByUsername,
   updateProfile,
   type FeedDream,
+  type FollowCounts,
   type FriendStats,
   type Profile as ProfileRow,
 } from '../lib/sync'
@@ -40,6 +43,8 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [pinned, setPinned] = useState<FeedDream[]>([])
   const [followed, setFollowed] = useState(false)
   const [friends, setFriends] = useState<ProfileRow[]>([])
+  const [fans, setFans] = useState<ProfileRow[]>([])
+  const [counts, setCounts] = useState<FollowCounts | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
@@ -62,9 +67,11 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
       setState('ready')
       pinnedDreams(p.id).then((d) => alive && setPinned(d))
       friendStats(p.id).then((s) => alive && setStats(s))
+      followCounts(p.id).then((c) => alive && setCounts(c))
       if (p.id !== my.id) isFollowing(p.id).then((f) => alive && setFollowed(f))
       else {
         following().then((f) => alive && setFriends(f))
+        followers().then((f) => alive && setFans(f))
         // own profile: fold anything newly earned into the synced unlock set
         const dreams = await listDreams()
         const earned = deriveUnlocks(dreams)
@@ -151,6 +158,12 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
               @{person.username}
               {mine && <span className="profile-you">· you</span>}
             </div>
+            {counts && (
+              <div className="profile-counts">
+                {counts.followers} follower{counts.followers === 1 ? '' : 's'} ·{' '}
+                {counts.following} following
+              </div>
+            )}
           </div>
         </div>
         {mine ? (
@@ -286,6 +299,36 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
 
       {mine && (
         <>
+          <section className="stat-section">
+            <div className="stat-heading">Followers</div>
+            {fans.length === 0 ? (
+              <p className="stat-note">No one yet — dreams travel slowly.</p>
+            ) : (
+              fans.map((f) => (
+                <div key={f.id} className="friend-row">
+                  <button
+                    className="friend-name friend-name-link"
+                    onClick={() => onNavigate({ name: 'profile', username: f.username })}
+                  >
+                    @{f.username}
+                  </button>
+                  {f.display_name && <span className="friend-stat">{f.display_name}</span>}
+                  {!friends.some((x) => x.id === f.id) && (
+                    <button
+                      className="quiet-btn unfollow-btn"
+                      onClick={async () => {
+                        const r = await follow(f.username)
+                        if (!r.error) setFriends([...friends, f])
+                      }}
+                    >
+                      follow back
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </section>
+
           <section className="stat-section">
             <div className="stat-heading">Following</div>
             {friends.length === 0 ? (

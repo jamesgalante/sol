@@ -218,6 +218,30 @@ export async function feed(): Promise<FeedDream[]> {
   }))
 }
 
+/** People who follow YOU. RLS only exposes edges you belong to, so this
+ *  is accurate for the signed-in user and empty for anyone else. */
+export async function followers(): Promise<Profile[]> {
+  if (!supabase) return []
+  const uid = await currentUserId()
+  if (!uid) return []
+  const { data } = await supabase
+    .from('follows')
+    .select(`follower, profiles!follows_follower_fkey(${PROFILE_COLS})`)
+    .eq('followee', uid)
+  return (data ?? []).map((r: any) => r.profiles).filter(Boolean)
+}
+
+export interface FollowCounts {
+  followers: number
+  following: number
+}
+
+export async function followCounts(userId: string): Promise<FollowCounts | null> {
+  if (!supabase) return null
+  const { data } = await supabase.rpc('follow_counts', { target: userId })
+  return data
+}
+
 export async function friendStats(userId: string): Promise<FriendStats | null> {
   if (!supabase) return null
   const { data } = await supabase.rpc('friend_stats', { target: userId })
