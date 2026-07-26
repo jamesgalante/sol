@@ -29,7 +29,8 @@ Share → Add to Home Screen, and it installs like an app.
 
 ## Roadmap ([issues](../../issues))
 
-Real transcription from stored audio (#1) · LLM categorization (#2) ·
+Real transcription from stored audio (#1, live Web Speech + a gated Whisper
+fallback — see `TRANSCRIPTION.md`) · LLM categorization (#2) ·
 mention → text-ping flow (#3) · sleep-data correlation via Apple Health (#6) ·
 wake-time reminders (#5).
 
