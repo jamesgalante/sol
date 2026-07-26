@@ -17,7 +17,17 @@ import {
   type Profile as ProfileRow,
 } from '../lib/sync'
 import { formatNight } from '../lib/time'
+import { listDreams } from '../lib/db'
+import {
+  ACHIEVEMENTS,
+  CLOUD_COLORS,
+  colorUnlocked,
+  deriveUnlocks,
+  itemsEarned,
+  type CloudColor,
+} from '../lib/achievements'
 import { Cloud } from '../components/Cloud'
+import { CloudAvatar } from '../components/CloudAvatar'
 import { Sheep } from '../components/Sheep'
 import type { View } from '../lib/types'
 
@@ -51,6 +61,16 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
       pinnedDreams(p.id).then((d) => alive && setPinned(d))
       friendStats(p.id).then((s) => alive && setStats(s))
       if (p.id !== my.id) isFollowing(p.id).then((f) => alive && setFollowed(f))
+      else {
+        // own profile: fold anything newly earned into the synced unlock set
+        const dreams = await listDreams()
+        const earned = deriveUnlocks(dreams)
+        const merged = [...new Set([...(p.unlocks ?? []), ...earned])]
+        if (merged.length > (p.unlocks ?? []).length) {
+          updateProfile({ unlocks: merged })
+          if (alive) setPerson({ ...p, unlocks: merged })
+        }
+      }
     })()
     return () => {
       alive = false
@@ -100,6 +120,17 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
     }
   }
 
+  const unlocks = person.unlocks ?? []
+  const equippedRaw = (person.cloud?.color ?? 'fog') as CloudColor
+  const equippedDef = CLOUD_COLORS.find((c) => c.id === equippedRaw)
+  const equipped: CloudColor =
+    equippedDef && colorUnlocked(equippedDef, unlocks) ? equippedRaw : 'fog'
+
+  async function equipColor(id: CloudColor) {
+    await updateProfile({ cloud: { ...(person!.cloud ?? {}), color: id } })
+    setPerson({ ...person!, cloud: { ...(person!.cloud ?? {}), color: id } })
+  }
+
   return (
     <div>
       <button className="back-link" onClick={() => onNavigate({ name: 'circle' })}>
@@ -107,11 +138,14 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
       </button>
 
       <div className="profile-head">
-        <div>
-          <h1 className="detail-title">{person.display_name || `@${person.username}`}</h1>
-          <div className="profile-handle">
-            @{person.username}
-            {mine && <span className="profile-you">· you</span>}
+        <div className="profile-id">
+          <CloudAvatar color={equipped} items={itemsEarned(unlocks)} size={92} />
+          <div>
+            <h1 className="detail-title">{person.display_name || `@${person.username}`}</h1>
+            <div className="profile-handle">
+              @{person.username}
+              {mine && <span className="profile-you">· you</span>}
+            </div>
           </div>
         </div>
         {mine ? (
@@ -160,6 +194,27 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
         person.bio && <p className="profile-bio">{person.bio}</p>
       )}
 
+      {mine && (
+        <div className="color-picker">
+          {CLOUD_COLORS.map((c) => {
+            const open = colorUnlocked(c, unlocks)
+            return (
+              <button
+                key={c.id}
+                className="color-dot"
+                data-on={c.id === equipped}
+                data-locked={!open}
+                style={{ background: c.fill }}
+                disabled={!open}
+                title={open ? c.name : `${c.name} — ${c.streak}-night streak`}
+                aria-label={open ? `Wear ${c.name}` : `${c.name}: locked, needs a ${c.streak}-night streak`}
+                onClick={() => equipColor(c.id)}
+              />
+            )
+          })}
+        </div>
+      )}
+
       {stats && (
         <div className="profile-stats">
           <span className="friend-stat">{stats.total} kept</span>
@@ -202,6 +257,25 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
               {open === d.id && <p className="feed-transcript">{d.transcript}</p>}
             </button>
           ))
+        )}
+      </section>
+
+      <section className="stat-section">
+        <div className="stat-heading">Achievements</div>
+        {ACHIEVEMENTS.map((a) => {
+          const earned = unlocks.includes(a.id)
+          return (
+            <div key={a.id} className="achievement-row" data-earned={earned}>
+              <span className="achievement-mark">{earned ? '●' : '○'}</span>
+              <span className="achievement-name">{a.name}</span>
+              <span className="achievement-hint">{a.hint}</span>
+            </div>
+          )
+        })}
+        {mine && (
+          <p className="stat-note">
+            Streaks color your cloud; deeds dress it. Everything earned stays earned.
+          </p>
         )}
       </section>
     </div>

@@ -10,6 +10,8 @@ export interface Profile {
   username: string
   display_name?: string | null
   bio?: string | null
+  cloud?: { color?: string } | null
+  unlocks?: string[] | null
 }
 
 export interface FeedDream {
@@ -50,7 +52,7 @@ export async function currentUserId(): Promise<string | null> {
   return data.session?.user.id ?? null
 }
 
-const PROFILE_COLS = 'id, username, display_name, bio'
+const PROFILE_COLS = 'id, username, display_name, bio, cloud, unlocks'
 
 export async function myProfile(): Promise<Profile | null> {
   if (!supabase) return null
@@ -73,6 +75,8 @@ export async function profileByUsername(username: string): Promise<Profile | nul
 export async function updateProfile(fields: {
   display_name?: string | null
   bio?: string | null
+  cloud?: { color?: string }
+  unlocks?: string[]
 }): Promise<{ error?: string }> {
   if (!supabase) return { error: 'offline' }
   const uid = await currentUserId()
