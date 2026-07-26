@@ -109,8 +109,10 @@ export interface TransitSky {
  * so the model call is a drop-in swap.
  */
 export interface SkyReading {
-  /** 2–4 short paragraphs; the first is a serif pull-quote line */
+  /** the main reading — Sun/Moon/Rising only; narrative[0] is the serif pull-quote */
   narrative: string[]
+  /** the hidden expansion — the whole natal chart read against the dream */
+  expandedNarrative: string[]
   /** the natal points the narrative actually leans on */
   placements: Placement[]
   /** the dream's tags mapped to an astrological signifier */

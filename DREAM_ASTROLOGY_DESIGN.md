@@ -114,22 +114,27 @@ Sans for UI, Geist Mono for tags/eyebrows):**
    transit closely aspecting a natal point). This is the one piece of the reading that's
    about the *moment*, not the person — dreaming is Moon-ruled, so this goes first.
 
-3. **"The connection"** — the LLM-generated narrative, 2–4 short paragraphs. Open with
-   one pull-quote-style line in the serif display font (mirrors how `screen-title` is
-   used elsewhere), then the explanation in body text. This is the emotional core of the
-   page — the actual "here's why this dream and your chart rhyme" writing.
+3. **"The reading"** (the main analysis) — the LLM-generated narrative, 2–3 short
+   paragraphs that relate **only the big three (Sun, Moon, Rising)** to the dream, plus the
+   transit/mood/symbols. Open with one pull-quote-style line in the serif display font
+   (mirrors how `screen-title` is used elsewhere), then the explanation in body text. This
+   is the emotional core of the page — kept deliberately focused, because relating the
+   whole chart to a single dream at once reads as overload. (`SkyReading.narrative`.)
 
-4. **"Placements at play"** — a row of small cards, one per natal point the narrative
-   actually references (always Sun/Moon/Rising if available; plus specific planets when
-   a symbol calls for one, e.g. Neptune for water/fog imagery, Pluto for death/rebirth
-   imagery). Each card: planet glyph + sign + one plain-language line ("Moon in Scorpio —
-   feelings that go underground before they surface"). Style as chips/cards consistent
-   with `.dream-card`.
+4. **"Placements at play"** — the big-three tiles only (`NatalSummary`): Sun/Moon/Rising +
+   the no-birth-time caveat when Rising/houses are unavailable. The wider chart's cards
+   live in the expansion below, not here.
 
-5. **"Symbol key"** — maps the dream's existing tags (from `categorize.ts`'s `LEXICON`)
-   to the astrological signifier the narrative drew on, e.g. `water → Moon / Pisces`,
-   `falling → Saturn`. Small mono-tag chip list, same visual language as the tags already
-   shown elsewhere on `DreamDetail`.
+5. **"Read the whole chart" expansion** (the hidden drop-down) — collapsed by default; a
+   quiet mono toggle (`aria-expanded`, rotating `▾` caret, styled after the `.friend-add`
+   pattern). When opened it reveals everything whole-chart:
+   - a second narrative (`SkyReading.expandedNarrative`, 2–3 paragraphs) reading the **rest
+     of the chart** — the other planets and Midheaven — against the dream;
+   - the extra-planet **cards** (glyph + sign + plain-language line, one per non–big-three
+     placement the reading leans on, e.g. Neptune for water/fog, Pluto for death/rebirth);
+   - the **symbol key** — the dream's existing tags (from `categorize.ts`'s `LEXICON`)
+     mapped to the astrological signifier the reading drew on, e.g. `water → Moon / Pisces`,
+     `falling → Saturn`, as a small mono-tag chip list.
 
 6. **Footer** — link back to full chart / to the birth-data settings if the user wants to
    correct their input.
@@ -138,33 +143,43 @@ Sans for UI, Geist Mono for tags/eyebrows):**
 - **No chart set up** → inline card using the `.auth-card` treatment already established
   for birth-chart entry in `src/screens/Me.tsx`/`src/screens/Profile.tsx` (§1), prompting
   birth data entry with a one-line explanation of why it's needed.
-- **Chart set up, reading not yet generated** → skeleton/shimmer placeholders for the
-  narrative and placement cards — no spinner, matches the app's calm pacing.
-- **Reading generation fails** (LLM/network) → still render sections 1, 2, and 4 (all
-  computable without the LLM); drop only "the connection" narrative with a quiet
-  "couldn't write this one — try again" affordance. Never block the whole tab on the
-  LLM call.
+- **Chart set up, reading not yet generated** → the `SkyLoader` (breathing moon + twinkling
+  stars, cycling captions) while cache → LLM → local resolves — no spinner, matches the
+  app's calm pacing.
+- **Reading generation fails** (LLM/network) → the local, deterministic `skyReading()`
+  fills **both** tiers (main + expansion) from data the app computed independently, so the
+  page never blocks on the network. Sections 1, 2, and 4 are computable regardless.
 
 ---
 
 ## 3. LLM synthesis
 
-**Inputs given to the model, all already computed/available — no free-floating claims:**
+**Inputs given to the model, all already computed/available — no free-floating claims.**
+The client (`skyReadingRemote.ts`) pre-formats the chart into plain-language lines and
+splits them into two labeled sets so the model knows which feeds which tier:
 - Dream transcript, `tags`, `mood` (existing `Dream` fields).
-- Natal placements: Sun/Moon/Rising + any planet whose sign/house is relevant, from the
-  stored chart.
+- `coreLines` — the **big three** (Sun, Moon, Rising) → feed the main `narrative`.
+- `chartLines` — the **rest of the chart** (other planets + Midheaven) → feed the
+  `expandedNarrative`.
 - Transiting positions at `dream.createdAt`, especially Moon sign/phase.
 
-**Output:** structured JSON, not free text — e.g.
-`{ narrative: string, placements: [{ point, sign, note }], symbolKeys: [{ tag, point, note }] }`
-— so the UI renders deterministically instead of parsing prose. This also makes the
-"reading fails" degrade path clean: if the JSON call fails, sections 1/2/4 above still
-render from data the app already computed independently of the LLM.
+**Output:** structured JSON, not free text —
+`{ narrative: string[], expandedNarrative: string[] }` from the endpoint, widened to the
+full `SkyReading` (`{ narrative, expandedNarrative, placements, symbolKeys }`) on the
+client, where `placements`/`symbolKeys` stay deterministic. Two tiers:
+- `narrative` — the **main reading**, drawing only on the big three + transit/mood/symbols;
+  `narrative[0]` is the serif pull-quote.
+- `expandedNarrative` — the **hidden expansion**, reading the wider chart against the dream
+  (see §2.5). No pull-quote.
+
+The UI renders both deterministically instead of parsing prose. Only the two narrative
+tiers are cached per dream (`readings` store in `db.ts`); placements/symbolKeys recompute
+on view. On any endpoint failure the local `skyReading()` fills both tiers.
 
 **Prompting constraint to carry into implementation:** the model must only reference
 placements and symbols that are actually present in the input — no inventing planets or
-aspects not in the computed chart. This keeps the feature honest (a real reading of a
-real chart) rather than generic astrology-flavored filler.
+aspects not in the computed chart. This applies to **both** tiers, and keeps the feature
+honest (a real reading of a real chart) rather than generic astrology-flavored filler.
 
 ---
 

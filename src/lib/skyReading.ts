@@ -130,8 +130,9 @@ export function skyReading(dream: Dream, natal: NatalChart, transit: TransitSky)
     if (p) placements.push(p)
   }
 
-  // ——— narrative ———
+  // ——— narrative: the main reading — Sun/Moon/Rising only ———
   const tSign = ZODIAC[transit.moonSign]
+  const rising = natal.hasHouses ? natal.ascendant : null
   const narrative: string[] = []
 
   // [0] pull-quote line, rendered in the serif display face
@@ -153,18 +154,44 @@ export function skyReading(dream: Dream, natal: NatalChart, transit: TransitSky)
     )
   }
 
-  // [3] the symbol tie — the loudest symbol and the planet it answers to
+  // [3] the Sun (and Rising, when a birth time gives us one) — the core self
+  if (sun) {
+    const risingClause = rising
+      ? ` And your ${ZODIAC[rising.sign]} Rising is the face this all wears — ${noteFor(rising)}.`
+      : ''
+    narrative.push(
+      `Your Sun in ${ZODIAC[sun.sign]} — ${noteFor(sun)} — is the light the rest of you turns around.${risingClause}`,
+    )
+  }
+
+  // ——— expandedNarrative: the whole chart, read against the dream ———
+  const expandedNarrative: string[] = []
+
+  // the loudest symbol and the planet it answers to
   if (matched.length > 0) {
     const first = matched[0]
     const s = SYMBOL_SIGNIFIERS[first]
     const p = nat(s.point)
     const where = p ? ` — in your chart it sits in ${ZODIAC[p.sign]}` : ''
-    narrative.push(`The ${first} threading through this dream answers to ${s.point}: ${s.note}${where}.`)
-  } else if (sun) {
-    narrative.push(
-      `No familiar symbols surfaced this time — so read it by your Sun in ${ZODIAC[sun.sign]}, ${noteFor(sun)}, the light the rest of you turns around.`,
+    expandedNarrative.push(
+      `The ${first} threading through this dream answers to ${s.point}: ${s.note}${where}.`,
     )
   }
 
-  return { narrative, placements, symbolKeys }
+  // one line per placement the reading leans on beyond the big three
+  const covered = new Set<string>(['Sun', 'Moon', 'ASC'])
+  if (matched.length > 0) covered.add(SYMBOL_SIGNIFIERS[matched[0]].point)
+  for (const p of placements) {
+    if (covered.has(p.point)) continue
+    expandedNarrative.push(`${p.point} in ${ZODIAC[p.sign]} — ${noteFor(p)}.`)
+  }
+
+  // nothing else pressed on this dream — say so honestly rather than pad
+  if (expandedNarrative.length === 0) {
+    expandedNarrative.push(
+      `The rest of your chart stayed quiet against this dream — no other placement pressed on its symbols tonight.`,
+    )
+  }
+
+  return { narrative, expandedNarrative, placements, symbolKeys }
 }
