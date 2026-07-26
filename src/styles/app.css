@@ -44,21 +44,86 @@ textarea {
   flex-direction: column;
   position: relative;
 }
-/* faint pre-dawn glow pinned to the bottom of the viewport */
-.shell::before {
-  content: '';
-  position: fixed;
-  inset: auto 0 0 0;
-  height: 38dvh;
-  background:
-    radial-gradient(120% 100% at 50% 118%, var(--horizon-rose) 0%, transparent 55%),
-    radial-gradient(90% 80% at 50% 125%, var(--dawn-soft) 0%, transparent 45%);
-  pointer-events: none;
-  z-index: 0;
-}
+/* atmosphere lives in the fixed .sky layer (behind .shell); keep content
+   above any local stacking */
 .shell > * {
   position: relative;
   z-index: 1;
+}
+
+/* ——— dynamic time-of-day sky ——— */
+/* A fixed layer behind every screen. Always the dark indigo night (there is
+   no light mode); time of day shows only through which body is up, where it
+   sits on its arc, and how warm the horizon glow reads. See DESIGN.md. */
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--night);
+}
+/* horizon glow: gold by day, a cool wash by night, cross-faded by --sky-warmth */
+.sky-glow {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 42dvh;
+  background:
+    radial-gradient(120% 100% at 50% 120%, rgba(197, 142, 142, calc(0.1 * var(--sky-warmth))) 0%, transparent 55%),
+    radial-gradient(90% 80% at 50% 125%, rgba(228, 185, 121, calc(0.14 * var(--sky-warmth))) 0%, transparent 45%),
+    radial-gradient(90% 80% at 50% 125%, rgba(201, 208, 227, calc(0.05 * (1 - var(--sky-warmth)))) 0%, transparent 50%);
+}
+.sky-sun,
+.sky-moon {
+  position: absolute;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition:
+    left 60s linear,
+    top 60s linear;
+  animation: sky-breathe 6s ease-in-out infinite;
+}
+.sky-sun {
+  background: radial-gradient(circle at 50% 35%, #f0cf9a 0%, var(--dawn) 45%, var(--dawn-deep) 100%);
+  box-shadow:
+    0 0 3.5rem rgba(228, 185, 121, 0.28),
+    0 0 7rem rgba(228, 185, 121, 0.1);
+}
+.sky-moon {
+  background: radial-gradient(circle at 50% 35%, #eef1f8 0%, var(--moon) 45%, var(--moon-deep) 100%);
+  box-shadow:
+    0 0 2.5rem rgba(201, 208, 227, 0.18),
+    0 0 6rem rgba(201, 208, 227, 0.07);
+}
+.sky-star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: var(--bone);
+  opacity: var(--star-o);
+  animation: sky-twinkle 2.4s ease-in-out infinite;
+}
+@keyframes sky-breathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.08); }
+}
+@keyframes sky-twinkle {
+  0%, 100% { opacity: var(--star-o); }
+  50% { opacity: calc(var(--star-o) * 0.3); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sky-sun,
+  .sky-moon,
+  .sky-star {
+    animation: none;
+  }
+  .sky-sun,
+  .sky-moon {
+    transition: none;
+  }
 }
 
 /* ——— header ——— */

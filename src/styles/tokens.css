@@ -15,6 +15,9 @@
   --dawn-deep: #b9884d;
   --dawn-soft: rgba(228, 185, 121, 0.12);
   --horizon-rose: rgba(197, 142, 142, 0.1);
+  --moon: #c9d0e3; /* the night's silver body */
+  --moon-deep: #7f8aa8;
+  --moon-soft: rgba(201, 208, 227, 0.1);
   --danger: #c58e8e;
 
   /* mood — diverging: nightmare ← neutral → bright (validated vs --night) */

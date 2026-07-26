@@ -7,6 +7,7 @@ import { Journal } from './screens/Journal'
 import { DreamDetail } from './screens/DreamDetail'
 import { Stats } from './screens/Stats'
 import { Circle } from './screens/Circle'
+import { Sky } from './components/Sky'
 
 function viewFromHash(): View {
   const h = window.location.hash.slice(1)
@@ -38,16 +39,19 @@ export default function App() {
   }
 
   return (
-    <div className="shell">
-      <Header />
-      {view.name === 'record' && (
-        <Record onSaved={(id) => navigate({ name: 'dream', id })} />
-      )}
-      {view.name === 'journal' && <Journal onNavigate={navigate} />}
-      {view.name === 'dream' && <DreamDetail id={view.id} onNavigate={navigate} />}
-      {view.name === 'stats' && <Stats />}
-      {view.name === 'circle' && <Circle />}
-      <Nav view={view} onNavigate={navigate} />
-    </div>
+    <>
+      <Sky />
+      <div className="shell">
+        <Header />
+        {view.name === 'record' && (
+          <Record onSaved={(id) => navigate({ name: 'dream', id })} />
+        )}
+        {view.name === 'journal' && <Journal onNavigate={navigate} />}
+        {view.name === 'dream' && <DreamDetail id={view.id} onNavigate={navigate} />}
+        {view.name === 'stats' && <Stats />}
+        {view.name === 'circle' && <Circle />}
+        <Nav view={view} onNavigate={navigate} />
+      </div>
+    </>
   )
 }
