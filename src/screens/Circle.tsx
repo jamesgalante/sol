@@ -10,21 +10,24 @@ import {
   follow,
   following,
   friendStats,
+  myBirthChart,
   myProfile,
   pushAll,
   type FeedDream,
   type FriendStats,
   type Profile,
 } from '../lib/sync'
-import { listDreams } from '../lib/db'
+import { getBirthChart, listDreams, saveBirthChart } from '../lib/db'
 import { formatClock } from '../lib/time'
 import { Cloud } from '../components/Cloud'
-import type { Mood } from '../lib/types'
+import { BirthChartForm } from '../components/BirthChartForm'
+import type { BirthChart, Mood } from '../lib/types'
 
 export function Circle() {
   const [session, setSession] = useState<boolean | null>(cloudEnabled() ? null : false)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [checked, setChecked] = useState(false)
+  const [birthChart, setBirthChart] = useState<BirthChart | null | undefined>(undefined)
 
   useEffect(() => {
     if (!supabase) {
@@ -51,17 +54,33 @@ export function Circle() {
     if (session && profile) listDreams().then(pushAll)
   }, [session, profile?.id])
 
+  // load the birth chart: local IndexedDB first, falling back to the cloud
+  // (the "second device" case — local is empty but a row already exists)
+  useEffect(() => {
+    if (!profile) {
+      setBirthChart(undefined)
+      return
+    }
+    getBirthChart().then((local) => {
+      if (local) {
+        setBirthChart(local)
+        return
+      }
+      myBirthChart().then((remote) => {
+        if (remote) saveBirthChart(remote)
+        setBirthChart(remote ?? null)
+      })
+    })
+  }, [profile?.id])
+
   if (!checked) return null
 
   if (!cloudEnabled()) {
     return (
       <div>
+        <div className="preview-band">PREVIEW · EXAMPLE DATA · CLOUD NOT CONFIGURED</div>
         <h1 className="screen-title">Circle</h1>
-        <HowItWorks />
-        <p className="stat-note">
-          Cloud isn't configured in this build — set VITE_SUPABASE_URL and
-          VITE_SUPABASE_ANON_KEY to enable sign-in.
-        </p>
+        <Preview />
       </div>
     )
   }
@@ -71,7 +90,8 @@ export function Circle() {
       <div>
         <h1 className="screen-title">Circle</h1>
         <SignIn />
-        <HowItWorks />
+        <div className="preview-band">WHAT IT LOOKS LIKE WITH FRIENDS</div>
+        <Preview />
       </div>
     )
   }
@@ -85,7 +105,34 @@ export function Circle() {
     )
   }
 
-  return <LiveCircle profile={profile} />
+  if (birthChart === undefined) return null
+
+  if (birthChart === null) {
+    return (
+      <div>
+        <h1 className="screen-title">Circle</h1>
+        <div className="auth-card">
+          <div className="auth-title">Add your birth chart</div>
+          <BirthChartForm
+            initial={null}
+            onSaved={setBirthChart}
+            onSkip={() =>
+              setBirthChart({
+                birthDate: null,
+                birthTime: null,
+                timeUnknown: false,
+                birthPlace: null,
+                skipped: true,
+                updatedAt: Date.now(),
+              })
+            }
+          />
+        </div>
+      </div>
+    )
+  }
+
+  return <LiveCircle profile={profile} birthChart={birthChart} onBirthChartChange={setBirthChart} />
 }
 
 /* ——— signed out: email code sign-in ——— */
@@ -110,13 +157,12 @@ function SignIn() {
   }
 
   async function verify() {
-    const token = code.replace(/\D/g, '')
-    if (!supabase || token.length < 6) return
+    if (!supabase || code.length < 6) return
     setBusy(true)
     setError('')
-    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token, type: 'email' })
+    const { error } = await supabase.auth.verifyOtp({ email, token: code.trim(), type: 'email' })
     setBusy(false)
-    if (error) setError(`${error.message} — codes expire and each new email replaces the old one; try “send code” again and use the newest email.`)
+    if (error) setError('That code didn’t work — check it or tap the email link instead.')
   }
 
   return (
@@ -148,7 +194,7 @@ function SignIn() {
             <input
               className="auth-input"
               inputMode="numeric"
-              placeholder="8-digit code"
+              placeholder="6-digit code"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && verify()}
@@ -204,12 +250,21 @@ function ClaimName({ onClaimed }: { onClaimed: () => void }) {
 }
 
 /* ——— the real circle ——— */
-function LiveCircle({ profile }: { profile: Profile }) {
+function LiveCircle({
+  profile,
+  birthChart,
+  onBirthChartChange,
+}: {
+  profile: Profile
+  birthChart: BirthChart
+  onBirthChartChange: (c: BirthChart) => void
+}) {
   const [friends, setFriends] = useState<Array<Profile & { stats?: FriendStats | null }>>([])
   const [dreams, setDreams] = useState<FeedDream[] | null>(null)
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [open, setOpen] = useState<string | null>(null)
+  const [editingChart, setEditingChart] = useState(false)
 
   async function refresh() {
     const f = await following()
@@ -239,6 +294,32 @@ function LiveCircle({ profile }: { profile: Profile }) {
     <div>
       <div className="preview-band">SIGNED IN AS @{profile.username.toUpperCase()}</div>
       <h1 className="screen-title">Circle</h1>
+
+      <div className="auth-card">
+        <div className="auth-title">Your birth chart</div>
+        {editingChart || birthChart.skipped ? (
+          <BirthChartForm
+            initial={birthChart}
+            onSaved={(c) => {
+              onBirthChartChange(c)
+              setEditingChart(false)
+            }}
+          />
+        ) : (
+          <div className="auth-row">
+            <div className="auth-sub" style={{ margin: 0 }}>
+              {birthChart.birthDate}
+              {birthChart.timeUnknown
+                ? ' · time unknown'
+                : birthChart.birthTime && ` · ${birthChart.birthTime}`}
+              {birthChart.birthPlace && ` · ${birthChart.birthPlace}`}
+            </div>
+            <button className="quiet-btn" onClick={() => setEditingChart(true)}>
+              edit
+            </button>
+          </div>
+        )}
+      </div>
 
       <div className="auth-card">
         <div className="auth-title">Follow a friend</div>
@@ -295,13 +376,6 @@ function LiveCircle({ profile }: { profile: Profile }) {
         </section>
       )}
 
-      {friends.length === 0 && (
-        <p className="stat-note" style={{ marginBottom: '2rem' }}>
-          Tell a friend to open the app, sign in, and claim a name — then follow
-          each other here.
-        </p>
-      )}
-
       {friends.length > 0 && (
         <section className="stat-section">
           <div className="stat-heading">Their nights</div>
@@ -325,29 +399,56 @@ function LiveCircle({ profile }: { profile: Profile }) {
           </p>
         </section>
       )}
-
-      <div className="detail-actions">
-        <button className="quiet-btn" onClick={() => supabase?.auth.signOut()}>
-          sign out
-        </button>
-      </div>
     </div>
   )
 }
 
-/* ——— signed-out pitch ——— */
-function HowItWorks() {
+/* ——— example data, shown until the real thing has content ——— */
+function Preview() {
+  const FEED: Array<{ author: string; title: string; time: string; mood: Mood; tags: string[]; mentions?: string }> = [
+    { author: 'sol', title: 'We were all on a train that ran underwater…', time: '6:02 am', mood: 'bright', tags: ['water', 'travel'], mentions: 'you' },
+    { author: 'maya', title: 'The lab printers were printing my thoughts…', time: '4:47 am', mood: 'dark', tags: ['work', 'chase'] },
+    { author: 'theo', title: 'A dog taught me to whistle in Portuguese…', time: '7:15 am', mood: 'neutral', tags: ['animals'] },
+  ]
   return (
-    <section className="stat-section">
-      <div className="stat-heading">How it works</div>
-      <ul className="how-list">
-        <li>Everything you record is private by default. Sharing is per-dream.</li>
-        <li>Follow friends by name and wake up to what they chose to share.</li>
-        <li>
-          Their stats — streak, nightmares, themes — are visible even when
-          their dreams aren't. The shape of their nights, not the content.
-        </li>
-      </ul>
-    </section>
+    <div>
+      <div className="ping-card">
+        <div className="ping-glyph">
+          <Cloud mood="bright" size={22} />
+        </div>
+        <div>
+          <div className="ping-text">
+            <strong>sol</strong> dreamt about you last night
+          </div>
+          <div className="ping-sub">Request to see it — dreams are private until shared.</div>
+        </div>
+        <button className="ping-btn" disabled>
+          request
+        </button>
+      </div>
+      <section className="night-group">
+        <div className="night-label">Last night · your circle</div>
+        {FEED.map((d) => (
+          <div key={d.author} className="dream-card circle-card">
+            <div className="circle-author">
+              @{d.author}
+              {d.mentions && <span className="mention-chip">mentions {d.mentions}</span>}
+            </div>
+            <div className="dream-card-title">{d.title}</div>
+            <div className="dream-card-meta">
+              <Cloud mood={d.mood} size={14} />
+              <span>{d.time}</span>
+              <span className="tag-row">
+                {d.tags.map((t) => (
+                  <span key={t} className="tag">
+                    {t}
+                  </span>
+                ))}
+              </span>
+            </div>
+          </div>
+        ))}
+      </section>
+    </div>
   )
 }

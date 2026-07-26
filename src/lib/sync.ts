@@ -2,7 +2,7 @@
 // your own dreams; the cloud mirrors them (private by default) and serves
 // the feed of dreams your followees chose to share.
 import { supabase } from './supabase'
-import type { Dream, Mood } from './types'
+import type { BirthChart, Dream, Mood } from './types'
 import { dreamMood } from './categorize'
 
 export interface Profile {
@@ -152,4 +152,47 @@ export async function friendStats(userId: string): Promise<FriendStats | null> {
   if (!supabase) return null
   const { data } = await supabase.rpc('friend_stats', { target: userId })
   return data
+}
+
+function toBirthChartRow(c: BirthChart, userId: string) {
+  return {
+    id: userId,
+    birth_date: c.birthDate,
+    birth_time: c.birthTime,
+    time_unknown: c.timeUnknown,
+    birth_place: c.birthPlace,
+    skipped: c.skipped,
+    updated_at: new Date().toISOString(),
+  }
+}
+
+function fromBirthChartRow(r: any): BirthChart {
+  return {
+    birthDate: r.birth_date,
+    birthTime: r.birth_time,
+    timeUnknown: r.time_unknown,
+    birthPlace: r.birth_place,
+    skipped: r.skipped,
+    updatedAt: new Date(r.updated_at).getTime(),
+  }
+}
+
+export async function myBirthChart(): Promise<BirthChart | null> {
+  if (!supabase) return null
+  const uid = await currentUserId()
+  if (!uid) return null
+  const { data } = await supabase
+    .from('birth_charts')
+    .select('birth_date, birth_time, time_unknown, birth_place, skipped, updated_at')
+    .eq('id', uid)
+    .maybeSingle()
+  return data ? fromBirthChartRow(data) : null
+}
+
+/** Mirror the local birth chart to the cloud (no-op offline / signed out). */
+export async function pushBirthChart(c: BirthChart): Promise<void> {
+  if (!supabase) return
+  const uid = await currentUserId()
+  if (!uid) return
+  await supabase.from('birth_charts').upsert(toBirthChartRow(c, uid))
 }

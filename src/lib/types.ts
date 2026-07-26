@@ -22,3 +22,18 @@ export type View =
   | { name: 'stats' }
   | { name: 'circle' }
   | { name: 'dream'; id: string }
+
+export interface BirthChart {
+  /** "YYYY-MM-DD" */
+  birthDate: string | null
+  /** "HH:mm" 24h, or null if unknown/unset */
+  birthTime: string | null
+  /** explicit "I don't know my birth time" flag */
+  timeUnknown: boolean
+  /** free text, e.g. "Portland, OR" — no geocoding */
+  birthPlace: string | null
+  /** true once the user has explicitly dismissed setup without filling data */
+  skipped: boolean
+  /** epoch ms, local bookkeeping */
+  updatedAt: number
+}
