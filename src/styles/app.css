@@ -1333,6 +1333,18 @@ textarea {
 .unfollow-btn {
   margin-left: auto;
 }
+.request-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 1rem;
+}
+.request-accept {
+  color: var(--dawn);
+}
+.follow-pending {
+  margin-top: 1.5rem;
+  flex-shrink: 0;
+}
 .profile-id {
   display: flex;
   align-items: center;

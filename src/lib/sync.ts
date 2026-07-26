@@ -111,17 +111,19 @@ export async function pinnedDreams(userId: string): Promise<FeedDream[]> {
   }))
 }
 
-export async function isFollowing(userId: string): Promise<boolean> {
-  if (!supabase) return false
+export type FollowState = 'none' | 'pending' | 'accepted'
+
+export async function followState(userId: string): Promise<FollowState> {
+  if (!supabase) return 'none'
   const uid = await currentUserId()
-  if (!uid) return false
+  if (!uid) return 'none'
   const { data } = await supabase
     .from('follows')
-    .select('followee')
+    .select('status')
     .eq('follower', uid)
     .eq('followee', userId)
     .maybeSingle()
-  return Boolean(data)
+  return (data?.status as FollowState) ?? 'none'
 }
 
 export async function claimUsername(username: string): Promise<{ error?: string }> {
@@ -205,7 +207,9 @@ export async function follow(username: string): Promise<{ error?: string }> {
     .maybeSingle()
   if (!target) return { error: `No one named @${username} yet.` }
   if (target.id === uid) return { error: 'That one you already follow, forever.' }
-  const { error } = await supabase.from('follows').insert({ follower: uid, followee: target.id })
+  const { error } = await supabase
+    .from('follows')
+    .insert({ follower: uid, followee: target.id, status: 'pending' })
   if (error && error.code !== '23505') return { error: error.message }
   return {}
 }
@@ -225,7 +229,39 @@ export async function following(): Promise<Profile[]> {
     .from('follows')
     .select(`followee, profiles!follows_followee_fkey(${PROFILE_COLS})`)
     .eq('follower', uid)
+    .eq('status', 'accepted')
   return (data ?? []).map((r: any) => r.profiles).filter(Boolean)
+}
+
+/** People asking to follow you — pending requests awaiting your call. */
+export async function followRequests(): Promise<Profile[]> {
+  if (!supabase) return []
+  const uid = await currentUserId()
+  if (!uid) return []
+  const { data } = await supabase
+    .from('follows')
+    .select(`follower, profiles!follows_follower_fkey(${PROFILE_COLS})`)
+    .eq('followee', uid)
+    .eq('status', 'pending')
+  return (data ?? []).map((r: any) => r.profiles).filter(Boolean)
+}
+
+export async function acceptRequest(followerId: string): Promise<void> {
+  if (!supabase) return
+  const uid = await currentUserId()
+  if (!uid) return
+  await supabase
+    .from('follows')
+    .update({ status: 'accepted' })
+    .eq('follower', followerId)
+    .eq('followee', uid)
+}
+
+export async function declineRequest(followerId: string): Promise<void> {
+  if (!supabase) return
+  const uid = await currentUserId()
+  if (!uid) return
+  await supabase.from('follows').delete().eq('follower', followerId).eq('followee', uid)
 }
 
 export async function feed(): Promise<FeedDream[]> {
@@ -264,6 +300,7 @@ export async function followers(): Promise<Profile[]> {
     .from('follows')
     .select(`follower, profiles!follows_follower_fkey(${PROFILE_COLS})`)
     .eq('followee', uid)
+    .eq('status', 'accepted')
   return (data ?? []).map((r: any) => r.profiles).filter(Boolean)
 }
 

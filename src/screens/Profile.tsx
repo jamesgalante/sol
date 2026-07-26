@@ -9,7 +9,11 @@ import {
   followers,
   following,
   unfollow,
-  isFollowing,
+  followState,
+  followRequests,
+  acceptRequest,
+  declineRequest,
+  type FollowState,
   friendStats,
   myBirthChart,
   myProfile,
@@ -54,7 +58,8 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [me, setMe] = useState<ProfileRow | null>(null)
   const [stats, setStats] = useState<FriendStats | null>(null)
   const [pinned, setPinned] = useState<FeedDream[]>([])
-  const [followed, setFollowed] = useState(false)
+  const [followed, setFollowed] = useState<FollowState>('none')
+  const [requests, setRequests] = useState<ProfileRow[]>([])
   const [friends, setFriends] = useState<ProfileRow[]>([])
   const [fans, setFans] = useState<ProfileRow[]>([])
   const [counts, setCounts] = useState<FollowCounts | null>(null)
@@ -84,10 +89,11 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
       pinnedDreams(p.id).then((d) => alive && setPinned(d))
       friendStats(p.id).then((s) => alive && setStats(s))
       followCounts(p.id).then((c) => alive && setCounts(c))
-      if (p.id !== my.id) isFollowing(p.id).then((f) => alive && setFollowed(f))
+      if (p.id !== my.id) followState(p.id).then((f) => alive && setFollowed(f))
       else {
         following().then((f) => alive && setFriends(f))
         followers().then((f) => alive && setFans(f))
+        followRequests().then((r) => alive && setRequests(r))
         // own profile: fold anything newly earned into the synced unlock set
         const dreams = await listDreams()
         const earned = deriveUnlocks(dreams)
@@ -148,12 +154,13 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   }
 
   async function toggleFollow() {
-    if (followed) {
-      await unfollow(person!.id)
-      setFollowed(false)
-    } else {
+    if (followed === 'none') {
       const r = await follow(person!.username)
-      if (!r.error) setFollowed(true)
+      if (!r.error) setFollowed('pending')
+    } else {
+      // cancels a pending request or unfollows an accepted one — same row
+      await unfollow(person!.id)
+      setFollowed('none')
     }
   }
 
@@ -205,8 +212,15 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
             {editing ? 'close' : 'edit profile'}
           </button>
         ) : (
-          <button className="auth-btn" onClick={toggleFollow}>
-            {followed ? 'following ✓' : 'follow'}
+          <button
+            className={followed === 'pending' ? 'quiet-btn follow-pending' : 'auth-btn'}
+            onClick={toggleFollow}
+          >
+            {followed === 'accepted'
+              ? 'following ✓'
+              : followed === 'pending'
+                ? 'requested · cancel'
+                : 'follow'}
           </button>
         )}
       </div>
@@ -419,6 +433,47 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
 
       {ptab === 'people' && mine && (
         <>
+          {requests.length > 0 && (
+            <section className="stat-section">
+              <div className="stat-heading">Requests</div>
+              {requests.map((f) => (
+                <div key={f.id} className="friend-row">
+                  <button
+                    className="friend-name friend-name-link"
+                    onClick={() => onNavigate({ name: 'profile', username: f.username })}
+                  >
+                    @{f.username}
+                  </button>
+                  {f.display_name && <span className="friend-stat">{f.display_name}</span>}
+                  <span className="request-actions">
+                    <button
+                      className="quiet-btn request-accept"
+                      onClick={async () => {
+                        await acceptRequest(f.id)
+                        setRequests(requests.filter((x) => x.id !== f.id))
+                        setFans([...fans, f])
+                      }}
+                    >
+                      accept
+                    </button>
+                    <button
+                      className="quiet-btn"
+                      onClick={async () => {
+                        await declineRequest(f.id)
+                        setRequests(requests.filter((x) => x.id !== f.id))
+                      }}
+                    >
+                      decline
+                    </button>
+                  </span>
+                </div>
+              ))}
+              <p className="stat-note">
+                Accepting lets them see the dreams you share and comment on them.
+              </p>
+            </section>
+          )}
+
           <section className="stat-section">
             <div className="stat-heading">Followers</div>
             {fans.length === 0 ? (
