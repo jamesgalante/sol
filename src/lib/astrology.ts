@@ -59,10 +59,20 @@ function makePlacement(point: string, longitude: number, ascSign: number | null,
 }
 
 /** Geocentric true-of-date ecliptic longitude of a body (Moon has its own path). */
-function bodyLongitude(body: string, date: Date): number {
+export function bodyLongitude(body: string, date: Date): number {
   if (body === 'Moon') return Astronomy.EclipticGeoMoon(date).lon
   const vec = Astronomy.GeoVector(body as Astronomy.Body, date, true)
   return Astronomy.Ecliptic(vec).elon
+}
+
+/**
+ * Is a planet in apparent retrograde at `date`? Uses the same 6-hour lookahead
+ * as the natal chart. Not meaningful for the luminaries (Sun/Moon never retrograde).
+ */
+export function isRetrograde(body: string, date: Date): boolean {
+  const lon = bodyLongitude(body, date)
+  const ahead = bodyLongitude(body, new Date(date.getTime() + 6 * 3600_000))
+  return norm360(ahead - lon + 180) - 180 < 0
 }
 
 /**
@@ -131,8 +141,7 @@ export function computeNatalChart(chart: BirthChart | null): NatalChart | null {
     const lon = bodyLongitude(b.body, instant)
     let retrograde: boolean | undefined
     if (b.point !== 'Sun' && b.point !== 'Moon') {
-      const ahead = bodyLongitude(b.body, new Date(instant.getTime() + 6 * 3600_000))
-      retrograde = norm360(ahead - lon + 180) - 180 < 0
+      retrograde = isRetrograde(b.body, instant)
     }
     return makePlacement(b.point, lon, ascSign, retrograde)
   })
