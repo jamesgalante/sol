@@ -19,7 +19,11 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
   const [live, setLive] = useState({ final: '', interim: '' })
   const [draft, setDraft] = useState('')
   // Why the review box is empty, when it is — so a blank box is never a mystery.
-  const [reviewNote, setReviewNote] = useState('')
+  // `error` styles it as a failure (transcription broke) vs. a plain note (no mic).
+  const [reviewNote, setReviewNote] = useState<{ text: string; error: boolean }>({
+    text: '',
+    error: false,
+  })
   const [stats, setStats] = useState<{ total: number; lastNight: number } | null>(null)
   const [blocked, setBlocked] = useState(false)
   const controller = useRef<RecordingController | null>(null)
@@ -64,26 +68,31 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
 
     if (result.transcript) {
       setDraft(result.transcript)
-      setReviewNote('')
+      setReviewNote({ text: '', error: false })
       setPhase('review')
       return
     }
     if (result.audio) {
+      // We caught the audio but live speech gave us nothing — try the server.
       setPhase('transcribing')
       try {
         setDraft(await transcribeAudio(result.audio))
-        setReviewNote('')
+        setReviewNote({ text: '', error: false })
       } catch {
-        // not enabled / offline / failed — let the user type it, but say why.
+        // The recording exists but transcription failed (no API key, not enabled,
+        // offline, or a server error). Tell the user plainly and let them type.
         setDraft('')
-        setReviewNote('The words didn’t come through this time — type what you remember.')
+        setReviewNote({
+          text: 'Something went wrong transcribing your recording — try typing it out instead.',
+          error: true,
+        })
       }
       setPhase('review')
       return
     }
     // No audio at all (no mic) — nothing to transcribe; this is the type-it path.
     setDraft('')
-    setReviewNote('No mic caught this one — type what you remember.')
+    setReviewNote({ text: 'No mic caught this one — type what you remember.', error: false })
     setPhase('review')
   }
 
@@ -113,7 +122,7 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
     audioRef.current = null
     durationRef.current = 0
     setDraft('')
-    setReviewNote('')
+    setReviewNote({ text: '', error: false })
     setLive({ final: '', interim: '' })
     setPhase('idle')
   }
@@ -144,7 +153,7 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
       : phase === 'transcribing'
         ? 'One moment…'
         : phase === 'review'
-          ? reviewNote
+          ? reviewNote.text
             ? 'What do you remember?'
             : 'Does this sound right?'
           : 'What did you dream?'
@@ -184,7 +193,11 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
 
       {phase === 'review' && (
         <div className="record-review">
-          {reviewNote && <div className="record-review-note">{reviewNote}</div>}
+          {reviewNote.text && (
+            <div className={`record-review-note${reviewNote.error ? ' record-review-note--error' : ''}`}>
+              {reviewNote.text}
+            </div>
+          )}
           <textarea
             className="transcript-edit"
             value={draft}

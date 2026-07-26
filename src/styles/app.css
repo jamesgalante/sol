@@ -274,6 +274,9 @@ textarea {
   color: var(--fog-dim);
   margin-bottom: 0.75rem;
 }
+.record-review-note--error {
+  color: var(--danger);
+}
 .record-review-actions {
   display: flex;
   gap: 1.5rem;
