@@ -64,7 +64,6 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [bioDraft, setBioDraft] = useState('')
   const [error, setError] = useState('')
   const [birthChart, setBirthChart] = useState<BirthChart | null | undefined>(undefined)
-  const [showFullChart, setShowFullChart] = useState(false)
   const [ptab, setPtab] = useState<'dreams' | 'cloud' | 'sky' | 'people'>('dreams')
   const natal = useMemo(() => computeNatalChart(birthChart ?? null), [birthChart])
 
@@ -233,6 +232,9 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
             <button className="auth-btn" onClick={saveProfile}>
               save
             </button>
+            <button className="quiet-btn" onClick={() => onNavigate({ name: 'birth-chart' })}>
+              birth details →
+            </button>
           </div>
           {error && <div className="auth-error">{error}</div>}
         </div>
@@ -294,25 +296,17 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
         ) : (
           <div className="chart-block">
             {natal && <NatalSummary chart={natal} />}
-            <div className="chart-line">
-              <span className="chart-line-meta">
-                {formatBirthDate(birthChart.birthDate)}
-                {birthChart.timeUnknown
-                  ? ''
-                  : birthChart.birthTime
-                    ? ` · ${birthChart.birthTime}`
-                    : ''}
-                {(birthChart.placeLabel || birthChart.birthPlace) &&
-                  ` · ${birthChart.placeLabel || birthChart.birthPlace}`}
-              </span>
-              <button className="quiet-btn" onClick={() => setShowFullChart((v) => !v)}>
-                {showFullChart ? 'hide chart' : 'full chart'}
-              </button>
-              <button className="quiet-btn" onClick={() => onNavigate({ name: 'birth-chart' })}>
-                edit
-              </button>
-            </div>
-            {natal && showFullChart && (
+            <p className="chart-line-meta">
+              {formatBirthDate(birthChart.birthDate)}
+              {birthChart.timeUnknown
+                ? ''
+                : birthChart.birthTime
+                  ? ` · ${birthChart.birthTime}`
+                  : ''}
+              {(birthChart.placeLabel || birthChart.birthPlace) &&
+                ` · ${birthChart.placeLabel || birthChart.birthPlace}`}
+            </p>
+            {natal && (
               <div className="chart-open">
                 <NatalWheel chart={natal} />
                 {!natal.hasHouses && (
