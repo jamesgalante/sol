@@ -7,6 +7,9 @@ import { Journal } from './screens/Journal'
 import { DreamDetail } from './screens/DreamDetail'
 import { Stats } from './screens/Stats'
 import { Circle } from './screens/Circle'
+import { Welcome } from './screens/Welcome'
+
+const WELCOMED_KEY = 'sol:welcomed'
 
 function viewFromHash(): View {
   const h = window.location.hash.slice(1)
@@ -18,13 +21,15 @@ function viewFromHash(): View {
 }
 
 function hashFor(view: View): string {
-  if (view.name === 'record') return ''
+  if (view.name === 'record' || view.name === 'welcome') return ''
   if (view.name === 'dream') return `dream/${view.id}`
   return view.name
 }
 
 export default function App() {
-  const [view, setView] = useState<View>(viewFromHash)
+  const [view, setView] = useState<View>(() =>
+    localStorage.getItem(WELCOMED_KEY) ? viewFromHash() : { name: 'welcome' },
+  )
 
   useEffect(() => {
     const onHash = () => setView(viewFromHash())
@@ -35,6 +40,19 @@ export default function App() {
   function navigate(v: View) {
     window.location.hash = hashFor(v)
     setView(v)
+  }
+
+  if (view.name === 'welcome') {
+    return (
+      <div className="shell">
+        <Welcome
+          onDone={() => {
+            localStorage.setItem(WELCOMED_KEY, '1')
+            navigate({ name: 'record' })
+          }}
+        />
+      </div>
+    )
   }
 
   return (

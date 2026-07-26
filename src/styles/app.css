@@ -864,6 +864,108 @@ textarea {
   background: var(--dawn);
 }
 
+/* ——— welcome walkthrough ——— */
+.welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 2rem 0 1.5rem;
+}
+.welcome-sky {
+  position: relative;
+  height: 9rem;
+  margin-bottom: 2.25rem;
+}
+.welcome-horizon {
+  position: absolute;
+  bottom: 0;
+  left: -100vw;
+  right: -100vw;
+  height: 1px;
+  background: var(--line);
+}
+.welcome-sheep {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: sheep-hop 0.7s var(--ease);
+}
+.welcome-sheep .sheep {
+  display: block;
+  animation: sheep-bob 4.5s ease-in-out 0.8s infinite;
+}
+@keyframes sheep-hop {
+  0% { transform: translateX(-50%) translateY(0); }
+  35% { transform: translateX(-50%) translateY(-1.125rem); }
+  70% { transform: translateX(-50%) translateY(0); }
+  85% { transform: translateX(-50%) translateY(-0.25rem); }
+  100% { transform: translateX(-50%) translateY(0); }
+}
+@keyframes sheep-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.2rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .welcome-sheep,
+  .welcome-sheep .sheep {
+    animation: none;
+  }
+}
+.welcome-card {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.welcome-title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  max-width: 16ch;
+  margin-bottom: 0.875rem;
+}
+.welcome-body {
+  font-size: var(--text-base);
+  line-height: 1.65;
+  color: var(--fog);
+  max-width: 34ch;
+  margin-bottom: 1.75rem;
+}
+.welcome-card .auth-card {
+  width: 100%;
+  max-width: 24rem;
+  text-align: left;
+}
+.welcome-next {
+  padding: 0.625rem 1.5rem;
+}
+.welcome-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+  margin-top: 2.5rem;
+}
+.welcome-dots {
+  display: flex;
+  gap: 0.5rem;
+}
+.welcome-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--line);
+  transition: background 0.3s var(--ease);
+}
+.welcome-dot[data-on='true'] {
+  background: var(--dawn);
+}
+
 /* ——— auth / live circle ——— */
 .auth-card {
   background: var(--ink);

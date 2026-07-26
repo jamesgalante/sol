@@ -17,6 +17,7 @@ export interface Dream {
 }
 
 export type View =
+  | { name: 'welcome' }
   | { name: 'record' }
   | { name: 'journal' }
   | { name: 'stats' }
