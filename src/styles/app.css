@@ -1055,6 +1055,16 @@ textarea {
   color: var(--danger);
   margin-top: 0.625rem;
 }
+.auth-toggle {
+  font-size: inherit;
+  color: var(--fog);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.25s var(--ease);
+}
+.auth-toggle:hover {
+  color: var(--bone);
+}
 .feed-transcript {
   margin-top: 0.75rem;
   font-size: var(--text-sm);

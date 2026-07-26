@@ -10,6 +10,20 @@ export function SignIn() {
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [usePassword, setUsePassword] = useState(false)
+  const [password, setPassword] = useState('')
+
+  async function signInWithPassword() {
+    if (!supabase || !email.includes('@') || !password) return
+    setBusy(true)
+    setError('')
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+    setBusy(false)
+    if (error) setError(error.message)
+  }
 
   async function send() {
     if (!supabase || !email.includes('@')) return
@@ -48,13 +62,44 @@ export function SignIn() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
+              onKeyDown={(e) => e.key === 'Enter' && (usePassword ? undefined : send())}
             />
-            <button className="auth-btn" onClick={send} disabled={busy || !email.includes('@')}>
-              {busy ? '…' : 'send code'}
+            {!usePassword && (
+              <button className="auth-btn" onClick={send} disabled={busy || !email.includes('@')}>
+                {busy ? '…' : 'send code'}
+              </button>
+            )}
+          </div>
+          {usePassword && (
+            <div className="auth-row" style={{ marginTop: '0.625rem' }}>
+              <input
+                className="auth-input"
+                type="password"
+                autoComplete="current-password"
+                placeholder="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && signInWithPassword()}
+              />
+              <button
+                className="auth-btn"
+                onClick={signInWithPassword}
+                disabled={busy || !email.includes('@') || !password}
+              >
+                {busy ? '…' : 'sign in'}
+              </button>
+            </div>
+          )}
+          <div className="auth-sub">
+            {usePassword ? (
+              <>Most accounts don’t have one — </>
+            ) : (
+              <>No password — we email you a code and a link. </>
+            )}
+            <button className="auth-toggle" onClick={() => setUsePassword(!usePassword)}>
+              {usePassword ? 'use an email code' : 'have a password?'}
             </button>
           </div>
-          <div className="auth-sub">No password — we email you a code and a link.</div>
         </>
       ) : (
         <>
