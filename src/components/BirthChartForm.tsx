@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { saveBirthChart } from '../lib/db'
 import { pushBirthChart } from '../lib/sync'
 import { searchPlaces, type GeoPlace } from '../lib/geocode'
@@ -61,6 +61,18 @@ export function BirthChartForm({
     return () => clearTimeout(id)
   }, [birthPlace])
 
+  // Open the native date/time picker on any click, not just the small icon —
+  // this mirrors the mobile tap-to-open behaviour on desktop browsers.
+  // showPicker() needs a user gesture (this click supplies it) and is absent
+  // on older browsers, so guard both.
+  function openPicker(e: MouseEvent<HTMLInputElement>) {
+    try {
+      e.currentTarget.showPicker?.()
+    } catch {
+      // Some browsers throw (e.g. cross-origin frames); fall back to focus.
+    }
+  }
+
   function pick(place: GeoPlace) {
     skipQuery.current = true
     setPicked(place)
@@ -117,6 +129,7 @@ export function BirthChartForm({
           type="date"
           value={birthDate}
           onChange={(e) => setBirthDate(e.target.value)}
+          onClick={openPicker}
         />
       </label>
       <label className="birth-field">
@@ -127,6 +140,7 @@ export function BirthChartForm({
           value={birthTime}
           disabled={timeUnknown}
           onChange={(e) => setBirthTime(e.target.value)}
+          onClick={openPicker}
         />
       </label>
       <label className="birth-check">

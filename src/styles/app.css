@@ -1708,6 +1708,24 @@ textarea {
 .birth-form .auth-input:disabled {
   opacity: 0.45;
 }
+/* Native date/time pickers exist on desktop too, but the calendar/clock
+   trigger icon defaults to black — invisible on --night. Lighten it so the
+   picker is discoverable on web the same way it is on mobile. */
+.birth-form input[type='date']::-webkit-calendar-picker-indicator,
+.birth-form input[type='time']::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity 0.2s var(--ease);
+}
+.birth-form input[type='date']:hover::-webkit-calendar-picker-indicator,
+.birth-form input[type='time']:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+.birth-form input[type='date']:disabled::-webkit-calendar-picker-indicator,
+.birth-form input[type='time']:disabled::-webkit-calendar-picker-indicator {
+  cursor: default;
+}
 .birth-check {
   display: flex;
   align-items: center;
