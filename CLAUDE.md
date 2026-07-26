@@ -4,6 +4,10 @@ Voice-first dream journal. James + Sol (GitHub: `solbarth`) side project.
 Public repo. Read `README.md` first for product + structure; this file is the
 operational stuff that doesn't belong there.
 
+**Building or changing any UI? Read `DESIGN.md` first and follow it** —
+tokens, type roles, voice, and the sun/sheep/cloud world. It applies to
+every contributor and every Claude session, James's and Sol's alike.
+
 ## Deploy + services
 
 - **Vercel**: project `sol` (account `jamesagalante-1583`). Production URL
