@@ -140,6 +140,30 @@ function ariaSummary(chart: NatalChart): string {
   return `Natal chart: ${big.join(', ')}.`
 }
 
+/** The compact big-three summary: Sun, Moon, and Rising (when known). */
+export function NatalSummary({ chart }: { chart: NatalChart }) {
+  const sun = chart.placements.find((p) => p.point === 'Sun')
+  const moon = chart.placements.find((p) => p.point === 'Moon')
+  const tiles: { label: string; point: string; sign: number }[] = []
+  if (sun) tiles.push({ label: 'Sun', point: 'Sun', sign: sun.sign })
+  if (moon) tiles.push({ label: 'Moon', point: 'Moon', sign: moon.sign })
+  if (chart.ascendant) tiles.push({ label: 'Rising', point: 'ASC', sign: chart.ascendant.sign })
+
+  return (
+    <div className="natal-summary">
+      {tiles.map((t) => (
+        <div key={t.label} className="natal-tile">
+          <span className={t.point === 'Sun' ? 'natal-tile-glyph natal-tile-sun' : 'natal-tile-glyph'} aria-hidden>
+            {glyphFor(t.point)}
+          </span>
+          <span className="natal-tile-label">{t.label}</span>
+          <span className="natal-tile-sign">{ZODIAC[t.sign]}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /** The readable placement list rendered beneath the wheel. */
 export function NatalLegend({ chart }: { chart: NatalChart }) {
   const rows: Placement[] = [

@@ -32,7 +32,7 @@ import { Cloud } from '../components/Cloud'
 import { CloudAvatar } from '../components/CloudAvatar'
 import { Sheep } from '../components/Sheep'
 import { BirthChartForm } from '../components/BirthChartForm'
-import { NatalWheel, NatalLegend } from '../components/NatalWheel'
+import { NatalWheel, NatalLegend, NatalSummary } from '../components/NatalWheel'
 import { computeNatalChart } from '../lib/astrology'
 import type { BirthChart, View } from '../lib/types'
 
@@ -51,6 +51,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [error, setError] = useState('')
   const [birthChart, setBirthChart] = useState<BirthChart | null | undefined>(undefined)
   const [editingChart, setEditingChart] = useState(false)
+  const [showFullChart, setShowFullChart] = useState(false)
   const natal = useMemo(() => computeNatalChart(birthChart ?? null), [birthChart])
 
   useEffect(() => {
@@ -230,14 +231,24 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
             />
           ) : (
             <>
-              {natal && <NatalWheel chart={natal} />}
-              {natal && !natal.hasHouses && (
-                <p className="natal-caveat">
-                  Add an exact birth time and pick your birth place to unlock your Rising sign and
-                  houses. Planet signs shown are computed at local noon.
-                </p>
+              {natal && <NatalSummary chart={natal} />}
+              {natal && (
+                <button className="quiet-btn" onClick={() => setShowFullChart((v) => !v)}>
+                  {showFullChart ? 'Hide full chart' : 'See full natal chart'}
+                </button>
               )}
-              {natal && <NatalLegend chart={natal} />}
+              {natal && showFullChart && (
+                <>
+                  <NatalWheel chart={natal} />
+                  {!natal.hasHouses && (
+                    <p className="natal-caveat">
+                      Add an exact birth time and pick your birth place to unlock your Rising sign
+                      and houses. Planet signs shown are computed at local noon.
+                    </p>
+                  )}
+                  <NatalLegend chart={natal} />
+                </>
+              )}
               <div className="auth-row">
                 <div className="auth-sub" style={{ margin: 0 }}>
                   {birthChart.birthDate}
@@ -247,7 +258,13 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
                   {(birthChart.placeLabel || birthChart.birthPlace) &&
                     ` · ${birthChart.placeLabel || birthChart.birthPlace}`}
                 </div>
-                <button className="quiet-btn" onClick={() => setEditingChart(true)}>
+                <button
+                  className="quiet-btn"
+                  onClick={() => {
+                    setShowFullChart(false)
+                    setEditingChart(true)
+                  }}
+                >
                   edit
                 </button>
               </div>
