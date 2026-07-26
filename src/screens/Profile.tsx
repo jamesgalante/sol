@@ -65,7 +65,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [error, setError] = useState('')
   const [birthChart, setBirthChart] = useState<BirthChart | null | undefined>(undefined)
   const [showFullChart, setShowFullChart] = useState(false)
-  const [ptab, setPtab] = useState<'dreams' | 'cloud' | 'people'>('dreams')
+  const [ptab, setPtab] = useState<'dreams' | 'cloud' | 'sky' | 'people'>('dreams')
   const natal = useMemo(() => computeNatalChart(birthChart ?? null), [birthChart])
 
   useEffect(() => {
@@ -240,7 +240,47 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
         person.bio && <p className="profile-bio">{person.bio}</p>
       )}
 
-      {mine &&
+      <div className="sky-seg profile-tabs" role="tablist" aria-label="Profile sections">
+        <button
+          className="sky-seg-btn"
+          role="tab"
+          aria-current={ptab === 'dreams'}
+          onClick={() => setPtab('dreams')}
+        >
+          Dreams
+        </button>
+        <button
+          className="sky-seg-btn"
+          role="tab"
+          aria-current={ptab === 'cloud'}
+          onClick={() => setPtab('cloud')}
+        >
+          Cloud
+        </button>
+        {mine && (
+          <button
+            className="sky-seg-btn"
+            role="tab"
+            aria-current={ptab === 'sky'}
+            onClick={() => setPtab('sky')}
+          >
+            Sky
+          </button>
+        )}
+        {mine && (
+          <button
+            className="sky-seg-btn"
+            role="tab"
+            aria-current={ptab === 'people'}
+            onClick={() => setPtab('people')}
+          >
+            People
+          </button>
+        )}
+      </div>
+
+      {ptab === 'sky' &&
+        mine &&
         birthChart !== undefined &&
         (!birthChart || birthChart.skipped || !birthChart.birthDate ? (
           // nothing filled yet: one quiet line linking to the page
@@ -286,35 +326,6 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
             )}
           </div>
         ))}
-
-      <div className="sky-seg profile-tabs" role="tablist" aria-label="Profile sections">
-        <button
-          className="sky-seg-btn"
-          role="tab"
-          aria-current={ptab === 'dreams'}
-          onClick={() => setPtab('dreams')}
-        >
-          Dreams
-        </button>
-        <button
-          className="sky-seg-btn"
-          role="tab"
-          aria-current={ptab === 'cloud'}
-          onClick={() => setPtab('cloud')}
-        >
-          Cloud
-        </button>
-        {mine && (
-          <button
-            className="sky-seg-btn"
-            role="tab"
-            aria-current={ptab === 'people'}
-            onClick={() => setPtab('people')}
-          >
-            People
-          </button>
-        )}
-      </div>
 
       {ptab === 'cloud' && mine && (
         <div className="color-picker">
