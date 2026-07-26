@@ -64,6 +64,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [error, setError] = useState('')
   const [birthChart, setBirthChart] = useState<BirthChart | null | undefined>(undefined)
   const [showFullChart, setShowFullChart] = useState(false)
+  const [ptab, setPtab] = useState<'dreams' | 'cloud' | 'people'>('dreams')
   const natal = useMemo(() => computeNatalChart(birthChart ?? null), [birthChart])
 
   useEffect(() => {
@@ -285,7 +286,36 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
           </div>
         ))}
 
-      {mine && (
+      <div className="sky-seg profile-tabs" role="tablist" aria-label="Profile sections">
+        <button
+          className="sky-seg-btn"
+          role="tab"
+          aria-current={ptab === 'dreams'}
+          onClick={() => setPtab('dreams')}
+        >
+          Dreams
+        </button>
+        <button
+          className="sky-seg-btn"
+          role="tab"
+          aria-current={ptab === 'cloud'}
+          onClick={() => setPtab('cloud')}
+        >
+          Cloud
+        </button>
+        {mine && (
+          <button
+            className="sky-seg-btn"
+            role="tab"
+            aria-current={ptab === 'people'}
+            onClick={() => setPtab('people')}
+          >
+            People
+          </button>
+        )}
+      </div>
+
+      {ptab === 'cloud' && mine && (
         <div className="color-picker">
           {CLOUD_COLORS.map((c) => {
             const open = colorUnlocked(c, unlocks)
@@ -306,7 +336,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
         </div>
       )}
 
-      {stats && (
+      {ptab === 'dreams' && stats && (
         <div className="profile-stats">
           <span className="friend-stat">{stats.total} kept</span>
           <span className="friend-stat">{stats.last_week} this week</span>
@@ -315,6 +345,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
         </div>
       )}
 
+      {ptab === 'dreams' && (
       <section className="stat-section">
         <div className="stat-heading">Pinned dreams</div>
         {pinned.length === 0 ? (
@@ -350,7 +381,9 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
           ))
         )}
       </section>
+      )}
 
+      {ptab === 'cloud' && (
       <section className="stat-section">
         <div className="stat-heading">Achievements</div>
         {ACHIEVEMENTS.map((a) => {
@@ -369,8 +402,9 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
           </p>
         )}
       </section>
+      )}
 
-      {mine && (
+      {ptab === 'people' && mine && (
         <>
           <section className="stat-section">
             <div className="stat-heading">Followers</div>
@@ -429,19 +463,21 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
               ))
             )}
           </section>
-
-          <div className="detail-actions">
-            <button
-              className="quiet-btn"
-              onClick={async () => {
-                await supabase?.auth.signOut()
-                onNavigate({ name: 'circle' })
-              }}
-            >
-              sign out
-            </button>
-          </div>
         </>
+      )}
+
+      {mine && (
+        <div className="detail-actions">
+          <button
+            className="quiet-btn"
+            onClick={async () => {
+              await supabase?.auth.signOut()
+              onNavigate({ name: 'circle' })
+            }}
+          >
+            sign out
+          </button>
+        </div>
       )}
     </div>
   )

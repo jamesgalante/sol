@@ -1056,12 +1056,11 @@ textarea {
 }
 
 /* ——— auth / live circle ——— */
+/* flattened (2026-07-26): no boxes — a plain block whose title carries
+   the structure, matching the underline-field world */
 .auth-card {
-  background: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 0.625rem;
-  padding: 1.125rem 1.125rem 1rem;
-  margin-bottom: 1.75rem;
+  padding: 0.5rem 0 1rem;
+  margin-bottom: 1.25rem;
 }
 .auth-title {
   font-family: var(--font-mono);
@@ -1215,6 +1214,9 @@ textarea {
 .chart-section {
   margin: 0.5rem 0 1.75rem;
 }
+.profile-tabs {
+  margin: 0.75rem 0 1.5rem;
+}
 .chart-open {
   margin-top: 1.25rem;
 }
@@ -1262,15 +1264,13 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 0.625rem;
-  padding: 1.125rem;
-  margin-bottom: 1.75rem;
+  padding: 0.875rem 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
   transition: border-color 0.25s var(--ease);
 }
 .goto-card:hover {
-  border-color: var(--dawn-deep);
+  border-bottom-color: var(--dawn-deep);
 }
 .goto-card .auth-title {
   margin-bottom: 0;
