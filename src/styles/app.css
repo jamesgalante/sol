@@ -1847,6 +1847,50 @@ textarea {
   margin-top: 1rem;
 }
 
+/* ——— whole-chart expansion (the hidden drop-down) ——— */
+.sky-expand {
+  margin-top: 2.25rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+.sky-expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fog);
+  padding: 0.25rem 0;
+  transition: color 0.25s var(--ease);
+}
+.sky-expand-btn:hover,
+.sky-expand-btn[aria-expanded='true'] {
+  color: var(--dawn);
+}
+.sky-expand-caret {
+  margin-left: auto;
+  font-size: 0.9rem;
+  transition: transform 0.25s var(--ease);
+}
+.sky-expand-btn[aria-expanded='true'] .sky-expand-caret {
+  transform: rotate(180deg);
+}
+.sky-expand-body {
+  margin-top: 1.25rem;
+  animation: sky-fade-in 0.4s var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sky-expand-caret {
+    transition: none;
+  }
+  .sky-expand-body {
+    animation: none;
+  }
+}
+
 /* ——— birth-place typeahead ——— */
 .place-menu {
   position: absolute;

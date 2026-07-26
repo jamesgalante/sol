@@ -1,6 +1,10 @@
 // Local-first storage. Dreams + audio blobs live in IndexedDB;
 // swap this module for a real backend later without touching the screens.
-import type { BirthChart, Dream } from './types'
+import type { BirthChart, Dream, SkyReading } from './types'
+
+// What we cache per dream: the two narrative tiers (placements/symbolKeys are
+// recomputed deterministically on view, so they never need persisting).
+export type CachedReading = Pick<SkyReading, 'narrative' | 'expandedNarrative'>
 
 const DB_NAME = 'sol'
 const DB_VERSION = 3
@@ -107,18 +111,24 @@ export function saveBirthChart(chart: BirthChart): Promise<void> {
   })
 }
 
-// Per-dream cache of the LLM-generated Sky Reading narrative, so the paid call
-// happens once per dream. Invalidated on transcript edit (see DreamDetail).
-export function getCachedNarrative(id: string): Promise<string[] | undefined> {
-  return tx(['readings'], 'readonly', (t) => t.objectStore('readings').get(id))
+// Per-dream cache of the LLM-generated Sky Reading, so the paid call happens
+// once per dream. Invalidated on transcript edit (see DreamDetail).
+export async function getCachedReading(id: string): Promise<CachedReading | undefined> {
+  const v = await tx(['readings'], 'readonly', (t) => t.objectStore('readings').get(id))
+  // Old entries were a bare string[] narrative (pre-expansion) — treat as stale
+  // so the two-tier reading regenerates rather than crashing on a missing tier.
+  if (!v || Array.isArray(v) || !Array.isArray((v as CachedReading).expandedNarrative)) {
+    return undefined
+  }
+  return v as CachedReading
 }
 
-export function saveCachedNarrative(id: string, narrative: string[]): Promise<void> {
+export function saveCachedReading(id: string, reading: CachedReading): Promise<void> {
   return tx(['readings'], 'readwrite', (t) => {
-    t.objectStore('readings').put(narrative, id)
+    t.objectStore('readings').put(reading, id)
   })
 }
 
-export function clearCachedNarrative(id: string): Promise<void> {
+export function clearCachedReading(id: string): Promise<void> {
   return tx(['readings'], 'readwrite', (t) => t.objectStore('readings').delete(id))
 }

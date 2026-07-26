@@ -32,26 +32,31 @@ interface RequestBody {
   tags: string[]
   mood: 'dark' | 'neutral' | 'bright'
   // pre-formatted, plain-language lines so the model needs no astrology code:
-  natalLines: string[] // e.g. "Moon in Scorpio — the inner emotional world, intense and probing"
+  coreLines: string[] // the big three — e.g. "Moon in Scorpio — the inner emotional world, intense and probing"
+  chartLines: string[] // the rest of the chart — the other planets + Midheaven
   transitLine: string // e.g. "waxing gibbous Moon in Cancer; Mars, Saturn retrograde"
   symbolLines: string[] // e.g. "flying → Uranus: breaking free, rising above the ordinary"
 }
 
-// Structured-output schema: the model must return exactly this.
+// Structured-output schema: the model must return exactly this. `narrative` is
+// the main (Sun/Moon/Rising) reading; `expandedNarrative` is the hidden
+// whole-chart expansion.
 const SCHEMA = {
   type: 'object',
   properties: {
     narrative: { type: 'array', items: { type: 'string' } },
+    expandedNarrative: { type: 'array', items: { type: 'string' } },
   },
-  required: ['narrative'],
+  required: ['narrative', 'expandedNarrative'],
   additionalProperties: false,
 } as const
 
 const SYSTEM = `You are the dream-reading voice of sól, a voice-first dream journal.
-Write a short astrological reading of one dream, in second person ("you").
+Write a two-part astrological reading of one dream, in second person ("you").
 Voice: quiet, warm, literary, a little nocturnal — never clinical, never a horoscope cliché, no emoji.
 Rules:
-- Return 2–4 short paragraphs in the "narrative" array. The FIRST item is a single-sentence pull-quote (it renders in a serif display face).
+- "narrative" is the MAIN reading: 2–3 short paragraphs drawing ONLY on the big three (Sun, Moon, Rising) plus the transit, mood, and symbols. The FIRST item is a single-sentence pull-quote (it renders in a serif display face).
+- "expandedNarrative" is a HIDDEN expansion the reader can open: 2–3 short paragraphs reading the REST of the chart (the other planets and Midheaven) against the dream. It may touch the big three for context, but its job is the wider chart. No pull-quote here.
 - Use ONLY the placements, transit, symbols, mood, and dream text provided. Never invent planets, signs, aspects, or houses that aren't given.
 - Tie the dream's imagery to the astrology you're given; don't predict the future or give advice.`
 
@@ -76,7 +81,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `Dream (verbatim): ${b.transcript}`,
     `Mood: ${b.mood}. Tags: ${b.tags.join(', ') || 'none'}.`,
     `The sky that night: ${b.transitLine}`,
-    `The dreamer's natal placements:\n${b.natalLines.map((l) => `- ${l}`).join('\n')}`,
+    `The big three (use these for "narrative"):\n${b.coreLines.map((l) => `- ${l}`).join('\n')}`,
+    b.chartLines.length
+      ? `The rest of the chart (use these for "expandedNarrative"):\n${b.chartLines.map((l) => `- ${l}`).join('\n')}`
+      : `The rest of the chart couldn't be computed — keep "expandedNarrative" brief and honest about that.`,
     b.symbolLines.length
       ? `Symbols in this dream and what they answer to:\n${b.symbolLines.map((l) => `- ${l}`).join('\n')}`
       : `No familiar symbols surfaced this time.`,
@@ -91,8 +99,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       messages: [{ role: 'user', content: userContent }],
     })
     const text = message.content.find((c) => c.type === 'text')?.text ?? '{}'
-    const parsed = JSON.parse(text) as { narrative: string[] }
-    return res.status(200).json({ narrative: parsed.narrative })
+    const parsed = JSON.parse(text) as { narrative: string[]; expandedNarrative: string[] }
+    return res
+      .status(200)
+      .json({ narrative: parsed.narrative, expandedNarrative: parsed.expandedNarrative })
   } catch (e) {
     console.error('sky-reading error', e)
     return res.status(502).json({ error: 'synthesis failed' })

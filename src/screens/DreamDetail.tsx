@@ -6,7 +6,7 @@ import {
   deleteDream,
   getBirthChart,
   saveBirthChart,
-  clearCachedNarrative,
+  clearCachedReading,
 } from '../lib/db'
 import { cloudEnabled } from '../lib/supabase'
 import { pushDream, deleteCloudDream, currentUserId, myBirthChart } from '../lib/sync'
@@ -88,7 +88,7 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
     await saveDream(updated)
     // Transcript (and derived tags/mood) changed — drop the cached reading so
     // the Sky tab regenerates against the new text.
-    clearCachedNarrative(updated.id)
+    clearCachedReading(updated.id)
     pushDream(updated)
     setDream(updated)
     setEditing(false)
