@@ -291,6 +291,10 @@ function toBirthChartRow(c: BirthChart, userId: string) {
     birth_time: c.birthTime,
     time_unknown: c.timeUnknown,
     birth_place: c.birthPlace,
+    birth_lat: c.lat ?? null,
+    birth_lng: c.lng ?? null,
+    birth_tz: c.timezone ?? null,
+    birth_place_label: c.placeLabel ?? null,
     skipped: c.skipped,
     updated_at: new Date().toISOString(),
   }
@@ -302,6 +306,10 @@ function fromBirthChartRow(r: any): BirthChart {
     birthTime: r.birth_time,
     timeUnknown: r.time_unknown,
     birthPlace: r.birth_place,
+    lat: r.birth_lat,
+    lng: r.birth_lng,
+    timezone: r.birth_tz,
+    placeLabel: r.birth_place_label,
     skipped: r.skipped,
     updatedAt: new Date(r.updated_at).getTime(),
   }
@@ -313,7 +321,9 @@ export async function myBirthChart(): Promise<BirthChart | null> {
   if (!uid) return null
   const { data } = await supabase
     .from('birth_charts')
-    .select('birth_date, birth_time, time_unknown, birth_place, skipped, updated_at')
+    .select(
+      'birth_date, birth_time, time_unknown, birth_place, birth_lat, birth_lng, birth_tz, birth_place_label, skipped, updated_at',
+    )
     .eq('id', uid)
     .maybeSingle()
   return data ? fromBirthChartRow(data) : null

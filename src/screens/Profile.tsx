@@ -1,7 +1,7 @@
 // A person's page: name, bio, the shape of their nights, pinned dreams.
 // Your own profile is editable in place. Pinned dreams are the deliberately
 // public shelf — anyone signed in can read them here.
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { cloudEnabled, supabase } from '../lib/supabase'
 import {
   follow,
@@ -35,6 +35,8 @@ import { Cloud } from '../components/Cloud'
 import { CloudAvatar } from '../components/CloudAvatar'
 import { Sheep } from '../components/Sheep'
 import { BirthChartForm } from '../components/BirthChartForm'
+import { NatalWheel, NatalLegend, NatalSummary } from '../components/NatalWheel'
+import { computeNatalChart } from '../lib/astrology'
 import type { BirthChart, View } from '../lib/types'
 
 export function Profile({ username, onNavigate }: { username: string; onNavigate: (v: View) => void }) {
@@ -54,6 +56,8 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [error, setError] = useState('')
   const [birthChart, setBirthChart] = useState<BirthChart | null | undefined>(undefined)
   const [editingChart, setEditingChart] = useState(false)
+  const [showFullChart, setShowFullChart] = useState(false)
+  const natal = useMemo(() => computeNatalChart(birthChart ?? null), [birthChart])
 
   useEffect(() => {
     let alive = true
@@ -239,18 +243,45 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
               }}
             />
           ) : (
-            <div className="auth-row">
-              <div className="auth-sub" style={{ margin: 0 }}>
-                {birthChart.birthDate}
-                {birthChart.timeUnknown
-                  ? ' · time unknown'
-                  : birthChart.birthTime && ` · ${birthChart.birthTime}`}
-                {birthChart.birthPlace && ` · ${birthChart.birthPlace}`}
+            <>
+              {natal && <NatalSummary chart={natal} />}
+              {natal && (
+                <button className="quiet-btn" onClick={() => setShowFullChart((v) => !v)}>
+                  {showFullChart ? 'Hide full chart' : 'See full natal chart'}
+                </button>
+              )}
+              {natal && showFullChart && (
+                <>
+                  <NatalWheel chart={natal} />
+                  {!natal.hasHouses && (
+                    <p className="natal-caveat">
+                      Add an exact birth time and pick your birth place to unlock your Rising sign
+                      and houses. Planet signs shown are computed at local noon.
+                    </p>
+                  )}
+                  <NatalLegend chart={natal} />
+                </>
+              )}
+              <div className="auth-row">
+                <div className="auth-sub" style={{ margin: 0 }}>
+                  {birthChart.birthDate}
+                  {birthChart.timeUnknown
+                    ? ' · time unknown'
+                    : birthChart.birthTime && ` · ${birthChart.birthTime}`}
+                  {(birthChart.placeLabel || birthChart.birthPlace) &&
+                    ` · ${birthChart.placeLabel || birthChart.birthPlace}`}
+                </div>
+                <button
+                  className="quiet-btn"
+                  onClick={() => {
+                    setShowFullChart(false)
+                    setEditingChart(true)
+                  }}
+                >
+                  edit
+                </button>
               </div>
-              <button className="quiet-btn" onClick={() => setEditingChart(true)}>
-                edit
-              </button>
-            </div>
+            </>
           )}
         </div>
       )}
