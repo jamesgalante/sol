@@ -11,11 +11,14 @@ const MODEL = 'claude-haiku-4-5'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-// A non-VITE Supabase client used only to verify the caller's JWT. The anon key
-// is enough — we read identity, we don't write to Postgres.
+// A Supabase client used only to verify the caller's JWT. The anon key is
+// enough — we read identity, we don't write to Postgres. Prefer bare names but
+// fall back to the VITE_-prefixed vars, which are the only Supabase values set
+// in Vercel; without this fallback createClient() throws at module load and the
+// whole function 500s before the handler ever runs.
 const supabase = createClient(
-  process.env.SUPABASE_URL as string,
-  process.env.SUPABASE_ANON_KEY as string,
+  (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL) as string,
+  (process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY) as string,
 )
 
 const allowed = (process.env.LLM_ALLOWED_EMAILS ?? '')
