@@ -199,10 +199,14 @@ export async function feed(): Promise<FeedDream[]> {
   if (!supabase) return []
   const uid = await currentUserId()
   if (!uid) return []
+  // Scope to followees explicitly — RLS also lets us read PINNED dreams
+  // from anyone (profile shelves), and those must not leak into the feed.
+  const followeeIds = (await following()).map((f) => f.id)
+  if (followeeIds.length === 0) return []
   const { data } = await supabase
     .from('dreams')
     .select('id, title, created_at, tags, mood, transcript, profiles!dreams_user_id_fkey(username)')
-    .neq('user_id', uid)
+    .in('user_id', followeeIds)
     .eq('shared', true)
     .order('created_at', { ascending: false })
     .limit(50)
