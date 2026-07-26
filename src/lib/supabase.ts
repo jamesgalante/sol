@@ -11,3 +11,13 @@ export const supabase: SupabaseClient | null =
 export function cloudEnabled(): boolean {
   return supabase !== null
 }
+
+// Client-side mirror of the server's LLM_ALLOWED_EMAILS (in api/sky-reading.ts).
+// UX only — the serverless function is authoritative and re-checks the allowlist;
+// this just decides whether to attempt the LLM path. Keep in sync with the Vercel
+// LLM_ALLOWED_EMAILS env var.
+const LLM_ALLOWED_EMAILS = ['solomon.barth@gmail.com', 'jgalante@stanford.edu']
+
+export function llmEnabled(email: string | null | undefined): boolean {
+  return Boolean(email) && LLM_ALLOWED_EMAILS.includes(email!.toLowerCase())
+}

@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { getDream, getAudio, saveDream, deleteDream, getBirthChart, saveBirthChart } from '../lib/db'
+import {
+  getDream,
+  getAudio,
+  saveDream,
+  deleteDream,
+  getBirthChart,
+  saveBirthChart,
+  clearCachedNarrative,
+} from '../lib/db'
 import { cloudEnabled } from '../lib/supabase'
 import { pushDream, deleteCloudDream, currentUserId, myBirthChart } from '../lib/sync'
 import { categorize, detectMood, dreamMood, titleFrom } from '../lib/categorize'
@@ -18,15 +26,10 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
   const [signedIn, setSignedIn] = useState(false)
   const [tab, setTab] = useState<'dream' | 'sky'>('dream')
   const [birthChart, setBirthChart] = useState<BirthChart | null>(null)
-  const [skyReady, setSkyReady] = useState(false)
-  const skyTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     if (cloudEnabled()) currentUserId().then((id) => setSignedIn(Boolean(id)))
   }, [])
-
-  // Cancel the simulated "reading the sky" timer if we leave mid-analysis.
-  useEffect(() => () => window.clearTimeout(skyTimer.current), [])
 
   // The user's own birth chart, IndexedDB-first then cloud fallback — same
   // pattern as Me.tsx/Profile.tsx. Feeds the Sky tab's reading.
@@ -63,15 +66,11 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
   // reading against the sky (an unrecorded dream has no symbols/mood yet).
   const kept = Boolean(dream.transcript)
 
-  // First open of the Sky tab kicks off a one-time ~5s "analysis" (a stand-in
-  // for a future LLM call); the timer lives here so it survives Dream↔Sky
-  // toggles and fires once per dream view.
+  // SkyPanel now owns the reading (cache → LLM → local) and shows its own loader
+  // while the narrative resolves, so opening the tab is all this needs to do.
   function openSky() {
     if (!kept) return
     setTab('sky')
-    if (!skyReady && skyTimer.current === undefined) {
-      skyTimer.current = window.setTimeout(() => setSkyReady(true), 5000)
-    }
   }
 
   async function saveEdit() {
@@ -86,6 +85,9 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
       mood: detectMood(transcript),
     }
     await saveDream(updated)
+    // Transcript (and derived tags/mood) changed — drop the cached reading so
+    // the Sky tab regenerates against the new text.
+    clearCachedNarrative(updated.id)
     pushDream(updated)
     setDream(updated)
     setEditing(false)
@@ -196,7 +198,7 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
       </div>
 
       {kept && tab === 'sky' ? (
-        <SkyPanel dream={dream} birthChart={birthChart} onChartSaved={setBirthChart} ready={skyReady} />
+        <SkyPanel dream={dream} birthChart={birthChart} onChartSaved={setBirthChart} />
       ) : (
         <>
           {dream.hasAudio && <Player id={dream.id} durationSec={dream.durationSec} />}
