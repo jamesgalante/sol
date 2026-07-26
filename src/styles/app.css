@@ -1189,12 +1189,11 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.chart-card {
-  margin-bottom: 1.5rem;
+.chart-section {
+  margin: 0.5rem 0 1.75rem;
 }
-.chart-block .chart-card {
-  margin-top: 0.75rem;
-  margin-bottom: 0;
+.chart-open {
+  margin-top: 1.25rem;
 }
 .chart-cancel {
   margin-top: 0.75rem;
