@@ -18,6 +18,8 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
   const [elapsed, setElapsed] = useState(0)
   const [live, setLive] = useState({ final: '', interim: '' })
   const [draft, setDraft] = useState('')
+  // Why the review box is empty, when it is — so a blank box is never a mystery.
+  const [reviewNote, setReviewNote] = useState('')
   const [stats, setStats] = useState<{ total: number; lastNight: number } | null>(null)
   const [blocked, setBlocked] = useState(false)
   const controller = useRef<RecordingController | null>(null)
@@ -62,6 +64,7 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
 
     if (result.transcript) {
       setDraft(result.transcript)
+      setReviewNote('')
       setPhase('review')
       return
     }
@@ -69,13 +72,18 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
       setPhase('transcribing')
       try {
         setDraft(await transcribeAudio(result.audio))
+        setReviewNote('')
       } catch {
-        setDraft('') // not enabled / offline / failed — user types it after
+        // not enabled / offline / failed — let the user type it, but say why.
+        setDraft('')
+        setReviewNote('The words didn’t come through this time — type what you remember.')
       }
       setPhase('review')
       return
     }
+    // No audio at all (no mic) — nothing to transcribe; this is the type-it path.
     setDraft('')
+    setReviewNote('No mic caught this one — type what you remember.')
     setPhase('review')
   }
 
@@ -105,6 +113,7 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
     audioRef.current = null
     durationRef.current = 0
     setDraft('')
+    setReviewNote('')
     setLive({ final: '', interim: '' })
     setPhase('idle')
   }
@@ -135,7 +144,9 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
       : phase === 'transcribing'
         ? 'One moment…'
         : phase === 'review'
-          ? 'Does this sound right?'
+          ? reviewNote
+            ? 'What do you remember?'
+            : 'Does this sound right?'
           : 'What did you dream?'
 
   return (
@@ -173,6 +184,7 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
 
       {phase === 'review' && (
         <div className="record-review">
+          {reviewNote && <div className="record-review-note">{reviewNote}</div>}
           <textarea
             className="transcript-edit"
             value={draft}

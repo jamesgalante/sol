@@ -269,6 +269,11 @@ textarea {
   min-height: 8rem;
   font-size: var(--text-base);
 }
+.record-review-note {
+  font-size: var(--text-sm);
+  color: var(--fog-dim);
+  margin-bottom: 0.75rem;
+}
 .record-review-actions {
   display: flex;
   gap: 1.5rem;
