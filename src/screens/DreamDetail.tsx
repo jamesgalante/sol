@@ -11,6 +11,9 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
   const [dream, setDream] = useState<Dream | null>(null)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState('')
+  const cancelTitleRef = useRef(false)
   const [signedIn, setSignedIn] = useState(false)
 
   useEffect(() => {
@@ -35,10 +38,12 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
 
   async function saveEdit() {
     const transcript = draft.trim()
+    // Keep a manually-set title; only regenerate one the user never touched.
+    const titleWasAuto = dream!.title === titleFrom(dream!.transcript)
     const updated: Dream = {
       ...dream!,
       transcript,
-      title: titleFrom(transcript),
+      title: titleWasAuto ? titleFrom(transcript) : dream!.title,
       tags: categorize(transcript),
       mood: detectMood(transcript),
     }
@@ -46,6 +51,20 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
     pushDream(updated)
     setDream(updated)
     setEditing(false)
+  }
+
+  async function saveTitle() {
+    // Escape unmounts the input and fires onBlur; skip the save when cancelling.
+    if (cancelTitleRef.current) {
+      cancelTitleRef.current = false
+      return
+    }
+    const title = titleDraft.trim() || 'Untitled dream'
+    const updated: Dream = { ...dream!, title }
+    await saveDream(updated)
+    pushDream(updated)
+    setDream(updated)
+    setEditingTitle(false)
   }
 
   async function toggleShare() {
@@ -67,7 +86,34 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
       <button className="back-link" onClick={() => onNavigate({ name: 'journal' })}>
         ← journal
       </button>
-      <h1 className="detail-title">{dream.title}</h1>
+      {editingTitle ? (
+        <input
+          className="title-edit"
+          value={titleDraft}
+          autoFocus
+          placeholder="Name this dream…"
+          onChange={(e) => setTitleDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur()
+            else if (e.key === 'Escape') {
+              cancelTitleRef.current = true
+              setEditingTitle(false)
+            }
+          }}
+          onBlur={saveTitle}
+        />
+      ) : (
+        <h1
+          className="detail-title"
+          title="Rename"
+          onClick={() => {
+            setTitleDraft(dream.title)
+            setEditingTitle(true)
+          }}
+        >
+          {dream.title}
+        </h1>
+      )}
       <div className="detail-meta">
         <Cloud mood={dreamMood(dream)} size={14} /> {MOOD_LABEL[dreamMood(dream)].toUpperCase()} ·{' '}
         {nightLabel(dream.createdAt).toUpperCase()} · {formatClock(dream.createdAt)} ·{' '}
@@ -131,6 +177,15 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
               }}
             >
               edit
+            </button>
+            <button
+              className="quiet-btn"
+              onClick={() => {
+                setTitleDraft(dream.title)
+                setEditingTitle(true)
+              }}
+            >
+              rename
             </button>
             {signedIn && (
               <button className="quiet-btn" onClick={toggleShare}>

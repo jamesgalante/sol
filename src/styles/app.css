@@ -392,6 +392,22 @@ textarea {
   line-height: 1.75;
   resize: vertical;
 }
+.detail-title {
+  cursor: text;
+}
+.title-edit {
+  width: 100%;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  margin: 1.25rem 0 0.75rem;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.75rem;
+}
 .detail-actions {
   display: flex;
   gap: 1.5rem;
