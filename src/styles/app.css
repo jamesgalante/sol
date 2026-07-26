@@ -1683,3 +1683,48 @@ textarea {
 .place-option:focus-visible {
   background: var(--ink-2);
 }
+
+/* ——— birth chart form ——— */
+.birth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+.birth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.birth-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fog-dim);
+}
+.birth-form .auth-input {
+  width: 100%;
+}
+.birth-form .auth-input:disabled {
+  opacity: 0.45;
+}
+.birth-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--text-sm);
+  color: var(--fog);
+  cursor: pointer;
+}
+.birth-check input {
+  accent-color: var(--dawn);
+}
+.birth-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.125rem;
+}
+.birth-note {
+  margin-top: 0.25rem;
+}

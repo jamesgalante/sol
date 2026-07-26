@@ -109,16 +109,18 @@ export function BirthChartForm({
   }
 
   return (
-    <>
-      <div className="auth-row">
+    <div className="birth-form">
+      <label className="birth-field">
+        <span className="birth-label">date of birth</span>
         <input
           className="auth-input"
           type="date"
           value={birthDate}
           onChange={(e) => setBirthDate(e.target.value)}
         />
-      </div>
-      <div className="auth-row">
+      </label>
+      <label className="birth-field">
+        <span className="birth-label">time of birth</span>
         <input
           className="auth-input"
           type="time"
@@ -126,18 +128,17 @@ export function BirthChartForm({
           disabled={timeUnknown}
           onChange={(e) => setBirthTime(e.target.value)}
         />
-      </div>
-      <div className="auth-row">
-        <label className="auth-sub" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-          <input
-            type="checkbox"
-            checked={timeUnknown}
-            onChange={(e) => setTimeUnknown(e.target.checked)}
-          />
-          I don't know my birth time
-        </label>
-      </div>
-      <div className="auth-row" style={{ position: 'relative' }}>
+      </label>
+      <label className="birth-check">
+        <input
+          type="checkbox"
+          checked={timeUnknown}
+          onChange={(e) => setTimeUnknown(e.target.checked)}
+        />
+        <span>I don't know my birth time</span>
+      </label>
+      <div className="birth-field" style={{ position: 'relative' }}>
+        <span className="birth-label">place of birth</span>
         <input
           className="auth-input"
           type="text"
@@ -162,7 +163,7 @@ export function BirthChartForm({
           </ul>
         )}
       </div>
-      <div className="auth-row">
+      <div className="birth-actions">
         <button className="auth-btn" onClick={save} disabled={busy || !birthDate}>
           {busy ? '…' : 'save'}
         </button>
@@ -172,10 +173,10 @@ export function BirthChartForm({
           </button>
         )}
       </div>
-      <div className="auth-sub">
+      <p className="auth-sub birth-note">
         Pick your birth place from the list so we can place your Rising sign and houses. Birth
         time is optional — without it the chart shows planets by sign only, not the Rising sign.
-      </div>
-    </>
+      </p>
+    </div>
   )
 }
