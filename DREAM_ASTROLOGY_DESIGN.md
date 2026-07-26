@@ -167,14 +167,22 @@ splits them into two labeled sets so the model knows which feeds which tier:
 `{ narrative: string[], expandedNarrative: string[] }` from the endpoint, widened to the
 full `SkyReading` (`{ narrative, expandedNarrative, placements, symbolKeys }`) on the
 client, where `placements`/`symbolKeys` stay deterministic. Two tiers:
-- `narrative` — the **main reading**, drawing only on the big three + transit/mood/symbols;
-  `narrative[0]` is the serif pull-quote.
+- `narrative` — the **main reading**, drawing only on the big three + transit/mood/symbols.
+  `narrative[0]` is the serif pull-quote; it must carry the pull-quote **plus** body
+  paragraphs (schema `minItems: 3`, and the client rejects a shorter one to the local
+  fallback) — otherwise the main reading renders as just the pull-quote with no analysis.
 - `expandedNarrative` — the **hidden expansion**, reading the wider chart against the dream
   (see §2.5). No pull-quote.
 
+**Voice:** the reading leans gently oracular — a soft horoscope / tarot register, weighted
+a touch more to omen and image than to clinical personality analysis — while staying
+grounded in the placements actually supplied.
+
 The UI renders both deterministically instead of parsing prose. Only the two narrative
 tiers are cached per dream (`readings` store in `db.ts`); placements/symbolKeys recompute
-on view. On any endpoint failure the local `skyReading()` fills both tiers.
+on view. A cached reading that's malformed (missing the expansion tier, or a pull-quote-only
+main reading) is treated as stale and regenerates. On any endpoint failure the local
+`skyReading()` fills both tiers.
 
 **Prompting constraint to carry into implementation:** the model must only reference
 placements and symbols that are actually present in the input — no inventing planets or
