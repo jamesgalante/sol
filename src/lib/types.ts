@@ -25,6 +25,7 @@ export type View =
   | { name: 'stats' }
   | { name: 'circle' }
   | { name: 'me' }
+  | { name: 'birth-chart' }
   | { name: 'profile'; username: string }
   | { name: 'dream'; id: string }
 

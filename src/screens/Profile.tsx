@@ -34,7 +34,6 @@ import {
 import { Cloud } from '../components/Cloud'
 import { CloudAvatar } from '../components/CloudAvatar'
 import { Sheep } from '../components/Sheep'
-import { BirthChartForm } from '../components/BirthChartForm'
 import { Comments } from '../components/Comments'
 import { NatalWheel, NatalLegend, NatalSummary } from '../components/NatalWheel'
 import { computeNatalChart } from '../lib/astrology'
@@ -65,7 +64,6 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [bioDraft, setBioDraft] = useState('')
   const [error, setError] = useState('')
   const [birthChart, setBirthChart] = useState<BirthChart | null | undefined>(undefined)
-  const [editingChart, setEditingChart] = useState(false)
   const [showFullChart, setShowFullChart] = useState(false)
   const natal = useMemo(() => computeNatalChart(birthChart ?? null), [birthChart])
 
@@ -243,23 +241,9 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
 
       {mine &&
         birthChart !== undefined &&
-        (editingChart ? (
-          <section className="stat-section chart-section">
-            <div className="stat-heading">Your birth chart</div>
-            <BirthChartForm
-              initial={birthChart ?? null}
-              onSaved={(c) => {
-                setBirthChart(c)
-                setEditingChart(false)
-              }}
-            />
-            <button className="quiet-btn chart-cancel" onClick={() => setEditingChart(false)}>
-              cancel
-            </button>
-          </section>
-        ) : !birthChart || birthChart.skipped || !birthChart.birthDate ? (
-          // nothing filled yet: one quiet line, not a box
-          <button className="chart-prompt" onClick={() => setEditingChart(true)}>
+        (!birthChart || birthChart.skipped || !birthChart.birthDate ? (
+          // nothing filled yet: one quiet line linking to the page
+          <button className="chart-prompt" onClick={() => onNavigate({ name: 'birth-chart' })}>
             <span className="chart-prompt-glyph" aria-hidden>
               ✶
             </span>
@@ -283,13 +267,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
               <button className="quiet-btn" onClick={() => setShowFullChart((v) => !v)}>
                 {showFullChart ? 'hide chart' : 'full chart'}
               </button>
-              <button
-                className="quiet-btn"
-                onClick={() => {
-                  setShowFullChart(false)
-                  setEditingChart(true)
-                }}
-              >
+              <button className="quiet-btn" onClick={() => onNavigate({ name: 'birth-chart' })}>
                 edit
               </button>
             </div>
