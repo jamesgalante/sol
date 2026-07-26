@@ -1114,6 +1114,59 @@ textarea {
   resize: vertical;
   font-family: var(--font-ui);
 }
+.friends-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 0.25rem 0 0.75rem;
+  margin-bottom: 1rem;
+  scrollbar-width: none;
+}
+.friends-row::-webkit-scrollbar {
+  display: none;
+}
+.friend-cloud {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+.friend-cloud-name {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  color: var(--fog);
+  max-width: 4.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.friend-cloud:hover .friend-cloud-name {
+  color: var(--bone);
+}
+.friend-add {
+  width: 2.875rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  border: 1px dashed var(--line);
+  border-radius: 1.125rem;
+  color: var(--fog-dim);
+  font-size: 1.125rem;
+  line-height: 1;
+  transition: color 0.25s var(--ease), border-color 0.25s var(--ease);
+}
+.friend-add:hover,
+.friend-add[aria-expanded='true'] {
+  color: var(--dawn);
+  border-color: var(--dawn-deep);
+}
+.follow-inline {
+  margin: -0.25rem 0 1.5rem;
+}
+.unfollow-btn {
+  margin-left: auto;
+}
 .profile-id {
   display: flex;
   align-items: center;

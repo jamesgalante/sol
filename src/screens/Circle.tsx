@@ -9,16 +9,16 @@ import {
   feed,
   follow,
   following,
-  friendStats,
   myProfile,
   pushAll,
   type FeedDream,
-  type FriendStats,
   type Profile,
 } from '../lib/sync'
 import { listDreams } from '../lib/db'
 import { formatClock } from '../lib/time'
 import { Cloud } from '../components/Cloud'
+import { CloudAvatar } from '../components/CloudAvatar'
+import { itemsEarned } from '../lib/achievements'
 import type { Mood, View } from '../lib/types'
 
 export function Circle({ onNavigate }: { onNavigate: (v: View) => void }) {
@@ -85,25 +85,21 @@ export function Circle({ onNavigate }: { onNavigate: (v: View) => void }) {
     )
   }
 
-  return <LiveCircle profile={profile} onNavigate={onNavigate} />
+  return <LiveCircle onNavigate={onNavigate} />
 }
 
-/* ——— the real circle ——— */
-function LiveCircle({ profile, onNavigate }: { profile: Profile; onNavigate: (v: View) => void }) {
-  const [friends, setFriends] = useState<Array<Profile & { stats?: FriendStats | null }>>([])
+/* ——— the real circle: your people, then their dreams ——— */
+function LiveCircle({ onNavigate }: { onNavigate: (v: View) => void }) {
+  const [friends, setFriends] = useState<Profile[]>([])
   const [dreams, setDreams] = useState<FeedDream[] | null>(null)
+  const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [open, setOpen] = useState<string | null>(null)
 
   async function refresh() {
-    const f = await following()
-    setFriends(f)
+    setFriends(await following())
     setDreams(await feed())
-    const withStats = await Promise.all(
-      f.map(async (p) => ({ ...p, stats: await friendStats(p.id) })),
-    )
-    setFriends(withStats)
   }
 
   useEffect(() => {
@@ -116,43 +112,65 @@ function LiveCircle({ profile, onNavigate }: { profile: Profile; onNavigate: (v:
     if (r.error) setError(r.error)
     else {
       setName('')
+      setAdding(false)
       refresh()
     }
   }
 
   return (
     <div>
-      <button
-        className="preview-band preview-band-link"
-        onClick={() => onNavigate({ name: 'profile', username: profile.username })}
-      >
-        SIGNED IN AS @{profile.username.toUpperCase()} · VIEW PROFILE
-      </button>
       <h1 className="screen-title">Circle</h1>
 
-      <div className="auth-card">
-        <div className="auth-title">Follow a friend</div>
-        <div className="auth-row">
-          <span className="auth-at">@</span>
-          <input
-            className="auth-input"
-            placeholder="solbarth"
-            value={name}
-            autoCapitalize="none"
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && add()}
-          />
-          <button className="auth-btn" onClick={add} disabled={name.trim().length < 3}>
-            follow
+      <div className="friends-row">
+        {friends.map((f) => (
+          <button
+            key={f.id}
+            className="friend-cloud"
+            onClick={() => onNavigate({ name: 'profile', username: f.username })}
+          >
+            <CloudAvatar
+              color={(f.cloud?.color as any) ?? 'fog'}
+              items={itemsEarned(f.unlocks ?? [])}
+              size={46}
+            />
+            <span className="friend-cloud-name">@{f.username}</span>
           </button>
-        </div>
-        {error && <div className="auth-error">{error}</div>}
+        ))}
+        <button
+          className="friend-add"
+          aria-label="Follow someone"
+          aria-expanded={adding}
+          onClick={() => setAdding(!adding)}
+        >
+          +
+        </button>
       </div>
+
+      {adding && (
+        <div className="follow-inline">
+          <div className="auth-row">
+            <span className="auth-at">@</span>
+            <input
+              className="auth-input"
+              placeholder="their name"
+              value={name}
+              autoFocus
+              autoCapitalize="none"
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && add()}
+            />
+            <button className="auth-btn" onClick={add} disabled={name.trim().length < 3}>
+              follow
+            </button>
+          </div>
+          {error && <div className="auth-error">{error}</div>}
+        </div>
+      )}
 
       {dreams !== null && dreams.length === 0 && (
         <p className="empty-sub" style={{ marginBottom: '2rem' }}>
           {friends.length === 0
-            ? 'Follow someone and their shared dreams appear here, night by night.'
+            ? 'Your circle is empty — tap + and follow a friend. Their shared dreams land here, night by night.'
             : 'Nothing shared yet. Dreams stay private until a friend shares one.'}
         </p>
       )}
@@ -194,47 +212,6 @@ function LiveCircle({ profile, onNavigate }: { profile: Profile; onNavigate: (v:
         </section>
       )}
 
-      {friends.length === 0 && (
-        <p className="stat-note" style={{ marginBottom: '2rem' }}>
-          Tell a friend to open the app, sign in, and claim a name — then follow
-          each other here.
-        </p>
-      )}
-
-      {friends.length > 0 && (
-        <section className="stat-section">
-          <div className="stat-heading">Their nights</div>
-          {friends.map((f) => (
-            <div key={f.id} className="friend-row">
-              <button
-                className="friend-name friend-name-link"
-                onClick={() => onNavigate({ name: 'profile', username: f.username })}
-              >
-                @{f.username}
-              </button>
-              {f.stats ? (
-                <>
-                  <span className="friend-stat">{f.stats.last_week} this week</span>
-                  <span className="friend-stat">{f.stats.dark_pct}% nightmares</span>
-                  {f.stats.top_tag && <span className="tag">{f.stats.top_tag}</span>}
-                </>
-              ) : (
-                <span className="friend-stat">…</span>
-              )}
-            </div>
-          ))}
-          <p className="stat-note">
-            Stats are shareable even when dreams aren't — the shape of their
-            nights, not the content.
-          </p>
-        </section>
-      )}
-
-      <div className="detail-actions">
-        <button className="quiet-btn" onClick={() => supabase?.auth.signOut()}>
-          sign out
-        </button>
-      </div>
     </div>
   )
 }

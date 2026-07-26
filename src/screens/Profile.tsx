@@ -2,9 +2,10 @@
 // Your own profile is editable in place. Pinned dreams are the deliberately
 // public shelf — anyone signed in can read them here.
 import { useEffect, useState } from 'react'
-import { cloudEnabled } from '../lib/supabase'
+import { cloudEnabled, supabase } from '../lib/supabase'
 import {
   follow,
+  following,
   unfollow,
   isFollowing,
   friendStats,
@@ -38,6 +39,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [stats, setStats] = useState<FriendStats | null>(null)
   const [pinned, setPinned] = useState<FeedDream[]>([])
   const [followed, setFollowed] = useState(false)
+  const [friends, setFriends] = useState<ProfileRow[]>([])
   const [open, setOpen] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
@@ -62,6 +64,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
       friendStats(p.id).then((s) => alive && setStats(s))
       if (p.id !== my.id) isFollowing(p.id).then((f) => alive && setFollowed(f))
       else {
+        following().then((f) => alive && setFriends(f))
         // own profile: fold anything newly earned into the synced unlock set
         const dreams = await listDreams()
         const earned = deriveUnlocks(dreams)
@@ -133,9 +136,11 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
 
   return (
     <div>
-      <button className="back-link" onClick={() => onNavigate({ name: 'circle' })}>
-        ← circle
-      </button>
+      {!mine && (
+        <button className="back-link" onClick={() => window.history.back()}>
+          ← back
+        </button>
+      )}
 
       <div className="profile-head">
         <div className="profile-id">
@@ -278,6 +283,50 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
           </p>
         )}
       </section>
+
+      {mine && (
+        <>
+          <section className="stat-section">
+            <div className="stat-heading">Following</div>
+            {friends.length === 0 ? (
+              <p className="stat-note">No one yet — find friends on the circle tab.</p>
+            ) : (
+              friends.map((f) => (
+                <div key={f.id} className="friend-row">
+                  <button
+                    className="friend-name friend-name-link"
+                    onClick={() => onNavigate({ name: 'profile', username: f.username })}
+                  >
+                    @{f.username}
+                  </button>
+                  {f.display_name && <span className="friend-stat">{f.display_name}</span>}
+                  <button
+                    className="quiet-btn unfollow-btn"
+                    onClick={async () => {
+                      await unfollow(f.id)
+                      setFriends(friends.filter((x) => x.id !== f.id))
+                    }}
+                  >
+                    unfollow
+                  </button>
+                </div>
+              ))
+            )}
+          </section>
+
+          <div className="detail-actions">
+            <button
+              className="quiet-btn"
+              onClick={async () => {
+                await supabase?.auth.signOut()
+                onNavigate({ name: 'circle' })
+              }}
+            >
+              sign out
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
