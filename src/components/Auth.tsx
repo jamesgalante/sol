@@ -4,6 +4,10 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { claimUsername } from '../lib/sync'
 
+// Password sign-in exists only for the shared preview test account.
+// Production users never see it — codes are the whole story there.
+const SHOW_PASSWORD_OPTION = window.location.hostname !== 'sol-tan-three.vercel.app'
+
 export function SignIn() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
@@ -92,13 +96,15 @@ export function SignIn() {
           )}
           <div className="auth-sub">
             {usePassword ? (
-              <>Most accounts don’t have one — </>
+              <>Test account only — </>
             ) : (
               <>No password — we email you a code and a link. </>
             )}
-            <button className="auth-toggle" onClick={() => setUsePassword(!usePassword)}>
-              {usePassword ? 'use an email code' : 'have a password?'}
-            </button>
+            {SHOW_PASSWORD_OPTION && (
+              <button className="auth-toggle" onClick={() => setUsePassword(!usePassword)}>
+                {usePassword ? 'use an email code' : 'test account'}
+              </button>
+            )}
           </div>
         </>
       ) : (

@@ -1124,6 +1124,38 @@ textarea {
   resize: vertical;
   font-family: var(--font-ui);
 }
+.goto-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 0.625rem;
+  padding: 1.125rem;
+  margin-bottom: 1.75rem;
+  transition: border-color 0.25s var(--ease);
+}
+.goto-card:hover {
+  border-color: var(--dawn-deep);
+}
+.goto-card .auth-title {
+  margin-bottom: 0;
+}
+.goto-arrow {
+  color: var(--dawn);
+  font-size: 1.125rem;
+}
+.me-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2.5rem 0 1.75rem;
+}
+.me-intro .welcome-title {
+  margin-top: 1.25rem;
+}
 .friends-row {
   display: flex;
   align-items: flex-start;

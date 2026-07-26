@@ -24,5 +24,6 @@ export type View =
   | { name: 'journal' }
   | { name: 'stats' }
   | { name: 'circle' }
+  | { name: 'me' }
   | { name: 'profile'; username: string }
   | { name: 'dream'; id: string }

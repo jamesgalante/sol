@@ -4,7 +4,6 @@
 //  - signed in            → the real thing: follow, feed, friend stats
 import { useEffect, useState } from 'react'
 import { supabase, cloudEnabled } from '../lib/supabase'
-import { SignIn, ClaimName } from '../components/Auth'
 import {
   feed,
   follow,
@@ -66,21 +65,17 @@ export function Circle({ onNavigate }: { onNavigate: (v: View) => void }) {
     )
   }
 
-  if (!session) {
+  if (!session || !profile) {
     return (
       <div>
         <h1 className="screen-title">Circle</h1>
-        <SignIn />
+        <button className="goto-card" onClick={() => onNavigate({ name: 'me' })}>
+          <span className="auth-title">
+            {!session ? 'Sign in on your profile' : 'Name your cloud first'}
+          </span>
+          <span className="goto-arrow">→</span>
+        </button>
         <HowItWorks />
-      </div>
-    )
-  }
-
-  if (!profile) {
-    return (
-      <div>
-        <h1 className="screen-title">Circle</h1>
-        <ClaimName onClaimed={() => myProfile().then(setProfile)} />
       </div>
     )
   }
