@@ -3,6 +3,7 @@ import { listDreams } from '../lib/db'
 import { formatDuration } from '../lib/time'
 import { dreamMood } from '../lib/categorize'
 import { computeStreak } from '../lib/achievements'
+import { restoreMyDreams } from '../lib/sync'
 import { Cloud, MOOD_LABEL } from '../components/Cloud'
 import type { Dream, Mood } from '../lib/types'
 
@@ -88,7 +89,9 @@ export function Stats() {
   const [dreams, setDreams] = useState<Dream[] | null>(null)
 
   useEffect(() => {
-    listDreams().then(setDreams)
+    restoreMyDreams()
+      .catch(() => 0)
+      .then(() => listDreams().then(setDreams))
   }, [])
 
   if (dreams === null) return null

@@ -145,6 +145,42 @@ export async function pushDream(d: Dream): Promise<void> {
   await supabase.from('dreams').upsert(toRow(d, uid))
 }
 
+/** Pull your own dreams from the cloud mirror and refill any that are
+ *  missing locally (storage eviction, new device, failed db upgrade).
+ *  Local rows always win; runs once per app session. */
+let restored: Promise<number> | null = null
+export function restoreMyDreams(): Promise<number> {
+  restored ??= (async () => {
+    if (!supabase) return 0
+    const uid = await currentUserId()
+    if (!uid) {
+      restored = null // not signed in yet — allow a retry after sign-in
+      return 0
+    }
+    const { data, error } = await supabase
+      .from('dreams')
+      .select('id, created_at, duration_sec, transcript, title, tags, mood, shared, pinned')
+      .eq('user_id', uid)
+    if (error || !data) return 0
+    const { importMissingDreams } = await import('./db')
+    return importMissingDreams(
+      data.map((r: any) => ({
+        id: r.id,
+        createdAt: new Date(r.created_at).getTime(),
+        durationSec: r.duration_sec ?? 0,
+        transcript: r.transcript ?? '',
+        title: r.title || 'Untitled dream',
+        tags: r.tags ?? [],
+        mood: r.mood ?? 'neutral',
+        shared: r.shared ?? false,
+        pinned: r.pinned ?? false,
+        hasAudio: false, // audio blobs never leave the device
+      })),
+    )
+  })()
+  return restored
+}
+
 /** Push everything local — used once after sign-in. */
 export async function pushAll(dreams: Dream[]): Promise<void> {
   if (!supabase || dreams.length === 0) return

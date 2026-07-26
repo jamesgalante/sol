@@ -21,8 +21,16 @@ function open(): Promise<IDBDatabase> {
         db.createObjectStore('birthChart')
       }
     }
-    req.onsuccess = () => resolve(req.result)
+    req.onsuccess = () => {
+      // if another tab upgrades the schema later, release our handle so
+      // the upgrade (and that tab) doesn't hang forever
+      req.result.onversionchange = () => req.result.close()
+      resolve(req.result)
+    }
     req.onerror = () => reject(req.error)
+    // an old tab holding the db open would block a version upgrade —
+    // surface it instead of hanging silently with a blank journal
+    req.onblocked = () => reject(new Error('database blocked by another open tab'))
   })
 }
 
@@ -69,6 +77,20 @@ export function deleteDream(id: string): Promise<void> {
 
 export function getAudio(id: string): Promise<Blob | undefined> {
   return tx(['audio'], 'readonly', (t) => t.objectStore('audio').get(id))
+}
+
+/** Restore path: insert dreams that aren't already here. Existing local
+ *  rows always win — local is the source of truth; this only fills gaps. */
+export async function importMissingDreams(dreams: Dream[]): Promise<number> {
+  if (dreams.length === 0) return 0
+  const existing = new Set((await listDreams()).map((d) => d.id))
+  const missing = dreams.filter((d) => !existing.has(d.id))
+  if (missing.length === 0) return 0
+  await tx(['dreams'], 'readwrite', (t) => {
+    const store = t.objectStore('dreams')
+    missing.forEach((d) => store.put(d))
+  })
+  return missing.length
 }
 
 export function getBirthChart(): Promise<BirthChart | undefined> {
