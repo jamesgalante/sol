@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { listDreams } from '../lib/db'
-import { nightKey, formatDuration } from '../lib/time'
+import { formatDuration } from '../lib/time'
 import { dreamMood } from '../lib/categorize'
+import { computeStreak } from '../lib/achievements'
 import { Cloud, MOOD_LABEL } from '../components/Cloud'
 import type { Dream, Mood } from '../lib/types'
 
@@ -20,14 +21,7 @@ interface Computed {
 }
 
 function compute(dreams: Dream[]): Computed {
-  const nightSet = new Set(dreams.map((d) => nightKey(d.createdAt)))
-
-  // streak: consecutive nights with a dream, ending with the last completed night
-  let t = Date.now()
-  if (new Date(t).getHours() >= 11) t -= DAY
-  let streak = 0
-  while (nightSet.has(nightKey(t - streak * DAY))) streak += 1
-
+  const streak = computeStreak(dreams)
   const cutoff = Date.now() - 30 * DAY
   const last30 = dreams.filter((d) => d.createdAt >= cutoff)
 

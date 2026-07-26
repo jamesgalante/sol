@@ -5,29 +5,25 @@
 import { useEffect, useState } from 'react'
 import { supabase, cloudEnabled } from '../lib/supabase'
 import {
-  claimUsername,
   feed,
   follow,
   following,
-  friendStats,
-  myBirthChart,
   myProfile,
   pushAll,
   type FeedDream,
-  type FriendStats,
   type Profile,
 } from '../lib/sync'
-import { getBirthChart, listDreams, saveBirthChart } from '../lib/db'
+import { listDreams } from '../lib/db'
 import { formatClock } from '../lib/time'
 import { Cloud } from '../components/Cloud'
-import { BirthChartForm } from '../components/BirthChartForm'
-import type { BirthChart, Mood } from '../lib/types'
+import { CloudAvatar } from '../components/CloudAvatar'
+import { itemsEarned } from '../lib/achievements'
+import type { Mood, View } from '../lib/types'
 
-export function Circle() {
+export function Circle({ onNavigate }: { onNavigate: (v: View) => void }) {
   const [session, setSession] = useState<boolean | null>(cloudEnabled() ? null : false)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [checked, setChecked] = useState(false)
-  const [birthChart, setBirthChart] = useState<BirthChart | null | undefined>(undefined)
 
   useEffect(() => {
     if (!supabase) {
@@ -54,226 +50,51 @@ export function Circle() {
     if (session && profile) listDreams().then(pushAll)
   }, [session, profile?.id])
 
-  // load the birth chart: local IndexedDB first, falling back to the cloud
-  // (the "second device" case — local is empty but a row already exists)
-  useEffect(() => {
-    if (!profile) {
-      setBirthChart(undefined)
-      return
-    }
-    getBirthChart().then((local) => {
-      if (local) {
-        setBirthChart(local)
-        return
-      }
-      myBirthChart().then((remote) => {
-        if (remote) saveBirthChart(remote)
-        setBirthChart(remote ?? null)
-      })
-    })
-  }, [profile?.id])
-
   if (!checked) return null
 
   if (!cloudEnabled()) {
     return (
       <div>
-        <div className="preview-band">PREVIEW · EXAMPLE DATA · CLOUD NOT CONFIGURED</div>
         <h1 className="screen-title">Circle</h1>
-        <Preview />
+        <HowItWorks />
+        <p className="stat-note">
+          Cloud isn't configured in this build — set VITE_SUPABASE_URL and
+          VITE_SUPABASE_ANON_KEY to enable sign-in.
+        </p>
       </div>
     )
   }
 
-  if (!session) {
+  if (!session || !profile) {
     return (
       <div>
         <h1 className="screen-title">Circle</h1>
-        <SignIn />
-        <div className="preview-band">WHAT IT LOOKS LIKE WITH FRIENDS</div>
-        <Preview />
-      </div>
-    )
-  }
-
-  if (!profile) {
-    return (
-      <div>
-        <h1 className="screen-title">Circle</h1>
-        <ClaimName onClaimed={() => myProfile().then(setProfile)} />
-      </div>
-    )
-  }
-
-  if (birthChart === undefined) return null
-
-  if (birthChart === null) {
-    return (
-      <div>
-        <h1 className="screen-title">Circle</h1>
-        <div className="auth-card">
-          <div className="auth-title">Add your birth chart</div>
-          <BirthChartForm
-            initial={null}
-            onSaved={setBirthChart}
-            onSkip={() =>
-              setBirthChart({
-                birthDate: null,
-                birthTime: null,
-                timeUnknown: false,
-                birthPlace: null,
-                skipped: true,
-                updatedAt: Date.now(),
-              })
-            }
-          />
-        </div>
-      </div>
-    )
-  }
-
-  return <LiveCircle profile={profile} birthChart={birthChart} onBirthChartChange={setBirthChart} />
-}
-
-/* ——— signed out: email code sign-in ——— */
-function SignIn() {
-  const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
-  const [code, setCode] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-
-  async function send() {
-    if (!supabase || !email.includes('@')) return
-    setBusy(true)
-    setError('')
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin },
-    })
-    setBusy(false)
-    if (error) setError(error.message)
-    else setSent(true)
-  }
-
-  async function verify() {
-    if (!supabase || code.length < 6) return
-    setBusy(true)
-    setError('')
-    const { error } = await supabase.auth.verifyOtp({ email, token: code.trim(), type: 'email' })
-    setBusy(false)
-    if (error) setError('That code didn’t work — check it or tap the email link instead.')
-  }
-
-  return (
-    <div className="auth-card">
-      {!sent ? (
-        <>
-          <div className="auth-title">Sign in to share dreams</div>
-          <div className="auth-row">
-            <input
-              className="auth-input"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
-            />
-            <button className="auth-btn" onClick={send} disabled={busy || !email.includes('@')}>
-              {busy ? '…' : 'send code'}
-            </button>
-          </div>
-          <div className="auth-sub">No password — we email you a code and a link.</div>
-        </>
-      ) : (
-        <>
-          <div className="auth-title">Check your email</div>
-          <div className="auth-row">
-            <input
-              className="auth-input"
-              inputMode="numeric"
-              placeholder="6-digit code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && verify()}
-            />
-            <button className="auth-btn" onClick={verify} disabled={busy || code.length < 6}>
-              {busy ? '…' : 'verify'}
-            </button>
-          </div>
-          <div className="auth-sub">Or tap the link in the email — either works.</div>
-        </>
-      )}
-      {error && <div className="auth-error">{error}</div>}
-    </div>
-  )
-}
-
-/* ——— signed in, no username yet ——— */
-function ClaimName({ onClaimed }: { onClaimed: () => void }) {
-  const [name, setName] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  async function claim() {
-    setBusy(true)
-    setError('')
-    const r = await claimUsername(name.trim().toLowerCase())
-    setBusy(false)
-    if (r.error) setError(r.error)
-    else onClaimed()
-  }
-
-  return (
-    <div className="auth-card">
-      <div className="auth-title">Pick your name</div>
-      <div className="auth-row">
-        <span className="auth-at">@</span>
-        <input
-          className="auth-input"
-          placeholder="james"
-          value={name}
-          autoCapitalize="none"
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && claim()}
-        />
-        <button className="auth-btn" onClick={claim} disabled={busy || name.trim().length < 3}>
-          {busy ? '…' : 'claim'}
+        <button className="goto-card" onClick={() => onNavigate({ name: 'me' })}>
+          <span className="auth-title">
+            {!session ? 'Sign in on your profile' : 'Name your cloud first'}
+          </span>
+          <span className="goto-arrow">→</span>
         </button>
+        <HowItWorks />
       </div>
-      <div className="auth-sub">This is how friends find you. Lowercase, 3–20 characters.</div>
-      {error && <div className="auth-error">{error}</div>}
-    </div>
-  )
+    )
+  }
+
+  return <LiveCircle onNavigate={onNavigate} />
 }
 
-/* ——— the real circle ——— */
-function LiveCircle({
-  profile,
-  birthChart,
-  onBirthChartChange,
-}: {
-  profile: Profile
-  birthChart: BirthChart
-  onBirthChartChange: (c: BirthChart) => void
-}) {
-  const [friends, setFriends] = useState<Array<Profile & { stats?: FriendStats | null }>>([])
+/* ——— the real circle: your people, then their dreams ——— */
+function LiveCircle({ onNavigate }: { onNavigate: (v: View) => void }) {
+  const [friends, setFriends] = useState<Profile[]>([])
   const [dreams, setDreams] = useState<FeedDream[] | null>(null)
+  const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [open, setOpen] = useState<string | null>(null)
-  const [editingChart, setEditingChart] = useState(false)
 
   async function refresh() {
-    const f = await following()
-    setFriends(f)
+    setFriends(await following())
     setDreams(await feed())
-    const withStats = await Promise.all(
-      f.map(async (p) => ({ ...p, stats: await friendStats(p.id) })),
-    )
-    setFriends(withStats)
   }
 
   useEffect(() => {
@@ -286,64 +107,65 @@ function LiveCircle({
     if (r.error) setError(r.error)
     else {
       setName('')
+      setAdding(false)
       refresh()
     }
   }
 
   return (
     <div>
-      <div className="preview-band">SIGNED IN AS @{profile.username.toUpperCase()}</div>
       <h1 className="screen-title">Circle</h1>
 
-      <div className="auth-card">
-        <div className="auth-title">Your birth chart</div>
-        {editingChart || birthChart.skipped ? (
-          <BirthChartForm
-            initial={birthChart}
-            onSaved={(c) => {
-              onBirthChartChange(c)
-              setEditingChart(false)
-            }}
-          />
-        ) : (
-          <div className="auth-row">
-            <div className="auth-sub" style={{ margin: 0 }}>
-              {birthChart.birthDate}
-              {birthChart.timeUnknown
-                ? ' · time unknown'
-                : birthChart.birthTime && ` · ${birthChart.birthTime}`}
-              {birthChart.birthPlace && ` · ${birthChart.birthPlace}`}
-            </div>
-            <button className="quiet-btn" onClick={() => setEditingChart(true)}>
-              edit
-            </button>
-          </div>
-        )}
+      <div className="friends-row">
+        {friends.map((f) => (
+          <button
+            key={f.id}
+            className="friend-cloud"
+            onClick={() => onNavigate({ name: 'profile', username: f.username })}
+          >
+            <CloudAvatar
+              color={(f.cloud?.color as any) ?? 'fog'}
+              items={itemsEarned(f.unlocks ?? [])}
+              size={46}
+            />
+            <span className="friend-cloud-name">@{f.username}</span>
+          </button>
+        ))}
+        <button
+          className="friend-add"
+          aria-label="Follow someone"
+          aria-expanded={adding}
+          onClick={() => setAdding(!adding)}
+        >
+          +
+        </button>
       </div>
 
-      <div className="auth-card">
-        <div className="auth-title">Follow a friend</div>
-        <div className="auth-row">
-          <span className="auth-at">@</span>
-          <input
-            className="auth-input"
-            placeholder="solbarth"
-            value={name}
-            autoCapitalize="none"
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && add()}
-          />
-          <button className="auth-btn" onClick={add} disabled={name.trim().length < 3}>
-            follow
-          </button>
+      {adding && (
+        <div className="follow-inline">
+          <div className="auth-row">
+            <span className="auth-at">@</span>
+            <input
+              className="auth-input"
+              placeholder="their name"
+              value={name}
+              autoFocus
+              autoCapitalize="none"
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && add()}
+            />
+            <button className="auth-btn" onClick={add} disabled={name.trim().length < 3}>
+              follow
+            </button>
+          </div>
+          {error && <div className="auth-error">{error}</div>}
         </div>
-        {error && <div className="auth-error">{error}</div>}
-      </div>
+      )}
 
       {dreams !== null && dreams.length === 0 && (
         <p className="empty-sub" style={{ marginBottom: '2rem' }}>
           {friends.length === 0
-            ? 'Follow someone and their shared dreams appear here, night by night.'
+            ? 'Your circle is empty — tap + and follow a friend. Their shared dreams land here, night by night.'
             : 'Nothing shared yet. Dreams stay private until a friend shares one.'}
         </p>
       )}
@@ -357,7 +179,16 @@ function LiveCircle({
               className="dream-card"
               onClick={() => setOpen(open === d.id ? null : d.id)}
             >
-              <div className="circle-author">@{d.username}</div>
+              <span
+                className="circle-author circle-author-link"
+                role="link"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onNavigate({ name: 'profile', username: d.username })
+                }}
+              >
+                @{d.username}
+              </span>
               <div className="dream-card-title">{d.title}</div>
               <div className="dream-card-meta">
                 <Cloud mood={d.mood as Mood} size={14} />
@@ -376,79 +207,23 @@ function LiveCircle({
         </section>
       )}
 
-      {friends.length > 0 && (
-        <section className="stat-section">
-          <div className="stat-heading">Their nights</div>
-          {friends.map((f) => (
-            <div key={f.id} className="friend-row">
-              <span className="friend-name">@{f.username}</span>
-              {f.stats ? (
-                <>
-                  <span className="friend-stat">{f.stats.last_week} this week</span>
-                  <span className="friend-stat">{f.stats.dark_pct}% nightmares</span>
-                  {f.stats.top_tag && <span className="tag">{f.stats.top_tag}</span>}
-                </>
-              ) : (
-                <span className="friend-stat">…</span>
-              )}
-            </div>
-          ))}
-          <p className="stat-note">
-            Stats are shareable even when dreams aren't — the shape of their
-            nights, not the content.
-          </p>
-        </section>
-      )}
     </div>
   )
 }
 
-/* ——— example data, shown until the real thing has content ——— */
-function Preview() {
-  const FEED: Array<{ author: string; title: string; time: string; mood: Mood; tags: string[]; mentions?: string }> = [
-    { author: 'sol', title: 'We were all on a train that ran underwater…', time: '6:02 am', mood: 'bright', tags: ['water', 'travel'], mentions: 'you' },
-    { author: 'maya', title: 'The lab printers were printing my thoughts…', time: '4:47 am', mood: 'dark', tags: ['work', 'chase'] },
-    { author: 'theo', title: 'A dog taught me to whistle in Portuguese…', time: '7:15 am', mood: 'neutral', tags: ['animals'] },
-  ]
+/* ——— signed-out pitch ——— */
+function HowItWorks() {
   return (
-    <div>
-      <div className="ping-card">
-        <div className="ping-glyph">
-          <Cloud mood="bright" size={22} />
-        </div>
-        <div>
-          <div className="ping-text">
-            <strong>sol</strong> dreamt about you last night
-          </div>
-          <div className="ping-sub">Request to see it — dreams are private until shared.</div>
-        </div>
-        <button className="ping-btn" disabled>
-          request
-        </button>
-      </div>
-      <section className="night-group">
-        <div className="night-label">Last night · your circle</div>
-        {FEED.map((d) => (
-          <div key={d.author} className="dream-card circle-card">
-            <div className="circle-author">
-              @{d.author}
-              {d.mentions && <span className="mention-chip">mentions {d.mentions}</span>}
-            </div>
-            <div className="dream-card-title">{d.title}</div>
-            <div className="dream-card-meta">
-              <Cloud mood={d.mood} size={14} />
-              <span>{d.time}</span>
-              <span className="tag-row">
-                {d.tags.map((t) => (
-                  <span key={t} className="tag">
-                    {t}
-                  </span>
-                ))}
-              </span>
-            </div>
-          </div>
-        ))}
-      </section>
-    </div>
+    <section className="stat-section">
+      <div className="stat-heading">How it works</div>
+      <ul className="how-list">
+        <li>Everything you record is private by default. Sharing is per-dream.</li>
+        <li>Follow friends by name and wake up to what they chose to share.</li>
+        <li>
+          Their stats — streak, nightmares, themes — are visible even when
+          their dreams aren't. The shape of their nights, not the content.
+        </li>
+      </ul>
+    </section>
   )
 }

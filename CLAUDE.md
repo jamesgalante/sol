@@ -22,6 +22,22 @@ operational stuff that doesn't belong there.
   Supabase's built-in email is limited to ~2/hour; if sign-in emails stop
   arriving, check the SMTP config and the Auth → Rate Limits page first.
 
+## Workflow
+
+- **Feature work goes branch → PR → Vercel preview → merge.** Never push
+  features straight to `main` (agreed 2026-07-26 after the profiles batch
+  shipped without review). Vercel auto-deploys `main` to production and
+  comments a preview URL on every PR; Preview env vars are configured.
+- Direct pushes to `main` are for trivial fixes only (typos, copy, docs —
+  like this one).
+- Schema changes ship as a numbered file in `supabase/migrations/` inside
+  the same PR, and James pastes them into the dashboard SQL editor at merge
+  time — a PR whose code needs an unrun migration will error in production.
+- A shared **preview test account** exists for signing into Vercel preview
+  URLs without the email-code dance (sign-in card → "have a password?").
+  Its email + password live in `.env.secrets`, never in the repo or PR
+  comments — this repo is public.
+
 ## Conventions
 
 - Local IndexedDB (`src/lib/db.ts`) is the source of truth for the user's own

@@ -74,6 +74,13 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
     setDream(updated)
   }
 
+  async function togglePin() {
+    const updated: Dream = { ...dream!, pinned: !dream!.pinned }
+    await saveDream(updated)
+    pushDream(updated)
+    setDream(updated)
+  }
+
   async function remove() {
     if (!confirm('Let this one fade?')) return
     await deleteDream(dream!.id)
@@ -190,6 +197,15 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
             {signedIn && (
               <button className="quiet-btn" onClick={toggleShare}>
                 {dream.shared ? 'shared ✓ · make private' : 'share to circle'}
+              </button>
+            )}
+            {signedIn && (
+              <button
+                className="quiet-btn"
+                title="Pinned dreams show on your profile to anyone signed in"
+                onClick={togglePin}
+              >
+                {dream.pinned ? 'pinned ✓ · unpin' : 'pin to profile'}
               </button>
             )}
             <button className="quiet-btn danger" onClick={remove}>
