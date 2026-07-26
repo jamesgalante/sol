@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listDreams } from '../lib/db'
+import { restoreMyDreams } from '../lib/sync'
 import { nightKey, nightLabel } from '../lib/time'
 import { DreamCard } from '../components/DreamCard'
 import { Calendar } from '../components/Calendar'
@@ -14,7 +15,10 @@ export function Journal({ onNavigate }: { onNavigate: (v: View) => void }) {
   const [nightFilter, setNightFilter] = useState<string | null>(null)
 
   useEffect(() => {
-    listDreams().then(setDreams)
+    // refill from the cloud mirror first (no-op when nothing is missing)
+    restoreMyDreams()
+      .catch(() => 0)
+      .then(() => listDreams().then(setDreams))
   }, [])
 
   if (dreams === null) return null
