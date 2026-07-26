@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { saveBirthChart } from '../lib/db'
 import { pushBirthChart } from '../lib/sync'
 import { searchPlaces, type GeoPlace } from '../lib/geocode'
+import { DatePicker, TimePicker, useCoarsePointer } from './DateTimePicker'
 import type { BirthChart } from '../lib/types'
 
 /**
@@ -41,6 +42,7 @@ export function BirthChartForm({
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const skipQuery = useRef(false) // don't re-search right after a pick
+  const coarse = useCoarsePointer() // touch → native picker; desktop → themed
 
   // Debounced place search — skips the lookup right after the user picks one.
   useEffect(() => {
@@ -122,27 +124,35 @@ export function BirthChartForm({
 
   return (
     <div className="birth-form">
-      <label className="birth-field">
+      <div className="birth-field">
         <span className="birth-label">date of birth</span>
-        <input
-          className="auth-input"
-          type="date"
-          value={birthDate}
-          onChange={(e) => setBirthDate(e.target.value)}
-          onClick={openPicker}
-        />
-      </label>
-      <label className="birth-field">
+        {coarse ? (
+          <input
+            className="auth-input"
+            type="date"
+            value={birthDate}
+            onChange={(e) => setBirthDate(e.target.value)}
+            onClick={openPicker}
+          />
+        ) : (
+          <DatePicker value={birthDate} onChange={setBirthDate} />
+        )}
+      </div>
+      <div className="birth-field">
         <span className="birth-label">time of birth</span>
-        <input
-          className="auth-input"
-          type="time"
-          value={birthTime}
-          disabled={timeUnknown}
-          onChange={(e) => setBirthTime(e.target.value)}
-          onClick={openPicker}
-        />
-      </label>
+        {coarse ? (
+          <input
+            className="auth-input"
+            type="time"
+            value={birthTime}
+            disabled={timeUnknown}
+            onChange={(e) => setBirthTime(e.target.value)}
+            onClick={openPicker}
+          />
+        ) : (
+          <TimePicker value={birthTime} onChange={setBirthTime} disabled={timeUnknown} />
+        )}
+      </div>
       <label className="birth-check">
         <input
           type="checkbox"
