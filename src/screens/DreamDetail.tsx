@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { getDream, getAudio, saveDream, deleteDream } from '../lib/db'
+import { getDream, getAudio, saveDream, deleteDream, getBirthChart, saveBirthChart } from '../lib/db'
 import { cloudEnabled } from '../lib/supabase'
-import { pushDream, deleteCloudDream, currentUserId } from '../lib/sync'
+import { pushDream, deleteCloudDream, currentUserId, myBirthChart } from '../lib/sync'
 import { categorize, detectMood, dreamMood, titleFrom } from '../lib/categorize'
 import { Cloud, MOOD_LABEL } from '../components/Cloud'
+import { SkyPanel } from '../components/SkyPanel'
 import { formatClock, formatDuration, nightLabel } from '../lib/time'
-import type { Dream, View } from '../lib/types'
+import type { BirthChart, Dream, View } from '../lib/types'
 
 export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: View) => void }) {
   const [dream, setDream] = useState<Dream | null>(null)
@@ -15,9 +16,31 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
   const [titleDraft, setTitleDraft] = useState('')
   const cancelTitleRef = useRef(false)
   const [signedIn, setSignedIn] = useState(false)
+  const [tab, setTab] = useState<'dream' | 'sky'>('dream')
+  const [birthChart, setBirthChart] = useState<BirthChart | null>(null)
+  const [skyReady, setSkyReady] = useState(false)
+  const skyTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     if (cloudEnabled()) currentUserId().then((id) => setSignedIn(Boolean(id)))
+  }, [])
+
+  // Cancel the simulated "reading the sky" timer if we leave mid-analysis.
+  useEffect(() => () => window.clearTimeout(skyTimer.current), [])
+
+  // The user's own birth chart, IndexedDB-first then cloud fallback — same
+  // pattern as Me.tsx/Profile.tsx. Feeds the Sky tab's reading.
+  useEffect(() => {
+    getBirthChart().then((local) => {
+      if (local) {
+        setBirthChart(local)
+        return
+      }
+      myBirthChart().then((remote) => {
+        if (remote) saveBirthChart(remote)
+        setBirthChart(remote ?? null)
+      })
+    })
   }, [])
 
   useEffect(() => {
@@ -35,6 +58,21 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
   }, [id])
 
   if (!dream) return null
+
+  // A dream is "kept" once it has a saved transcript — only then is it worth
+  // reading against the sky (an unrecorded dream has no symbols/mood yet).
+  const kept = Boolean(dream.transcript)
+
+  // First open of the Sky tab kicks off a one-time ~5s "analysis" (a stand-in
+  // for a future LLM call); the timer lives here so it survives Dream↔Sky
+  // toggles and fires once per dream view.
+  function openSky() {
+    if (!kept) return
+    setTab('sky')
+    if (!skyReady && skyTimer.current === undefined) {
+      skyTimer.current = window.setTimeout(() => setSkyReady(true), 5000)
+    }
+  }
 
   async function saveEdit() {
     const transcript = draft.trim()
@@ -136,84 +174,111 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
         </div>
       )}
 
-      {dream.hasAudio && <Player id={dream.id} durationSec={dream.durationSec} />}
-
-      {editing ? (
-        <textarea
-          className="transcript-edit"
-          value={draft}
-          autoFocus
-          placeholder="Type what you remember…"
-          onChange={(e) => setDraft(e.target.value)}
-        />
-      ) : dream.transcript ? (
-        <p className="transcript">{dream.transcript}</p>
-      ) : (
-        <p className="transcript transcript-empty">No words were caught.</p>
-      )}
-
-      <div className="detail-actions">
-        {editing ? (
-          <>
-            <button className="quiet-btn" onClick={saveEdit}>
-              keep
-            </button>
-            <button
-              className="quiet-btn"
-              onClick={async () => {
-                if (!dream.transcript) {
-                  // canceling a never-written dream discards it entirely
-                  await deleteDream(dream.id)
-                  onNavigate({ name: 'journal' })
-                  return
-                }
-                setEditing(false)
-                setDraft('')
-              }}
-            >
-              cancel
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              className="quiet-btn"
-              onClick={() => {
-                setDraft(dream.transcript)
-                setEditing(true)
-              }}
-            >
-              edit
-            </button>
-            <button
-              className="quiet-btn"
-              onClick={() => {
-                setTitleDraft(dream.title)
-                setEditingTitle(true)
-              }}
-            >
-              rename
-            </button>
-            {signedIn && (
-              <button className="quiet-btn" onClick={toggleShare}>
-                {dream.shared ? 'shared ✓ · make private' : 'share to circle'}
-              </button>
-            )}
-            {signedIn && (
-              <button
-                className="quiet-btn"
-                title="Pinned dreams show on your profile to anyone signed in"
-                onClick={togglePin}
-              >
-                {dream.pinned ? 'pinned ✓ · unpin' : 'pin to profile'}
-              </button>
-            )}
-            <button className="quiet-btn danger" onClick={remove}>
-              let it fade
-            </button>
-          </>
-        )}
+      <div className="sky-seg" role="tablist" aria-label="Dream or sky reading">
+        <button
+          className="sky-seg-btn"
+          role="tab"
+          aria-current={tab === 'dream'}
+          onClick={() => setTab('dream')}
+        >
+          Dream
+        </button>
+        <button
+          className="sky-seg-btn"
+          role="tab"
+          aria-current={tab === 'sky'}
+          disabled={!kept}
+          title={kept ? undefined : 'Keep this dream first'}
+          onClick={openSky}
+        >
+          Sky
+        </button>
       </div>
+
+      {kept && tab === 'sky' ? (
+        <SkyPanel dream={dream} birthChart={birthChart} onChartSaved={setBirthChart} ready={skyReady} />
+      ) : (
+        <>
+          {dream.hasAudio && <Player id={dream.id} durationSec={dream.durationSec} />}
+
+          {editing ? (
+            <textarea
+              className="transcript-edit"
+              value={draft}
+              autoFocus
+              placeholder="Type what you remember…"
+              onChange={(e) => setDraft(e.target.value)}
+            />
+          ) : dream.transcript ? (
+            <p className="transcript">{dream.transcript}</p>
+          ) : (
+            <p className="transcript transcript-empty">No words were caught.</p>
+          )}
+
+          <div className="detail-actions">
+            {editing ? (
+              <>
+                <button className="quiet-btn" onClick={saveEdit}>
+                  keep
+                </button>
+                <button
+                  className="quiet-btn"
+                  onClick={async () => {
+                    if (!dream.transcript) {
+                      // canceling a never-written dream discards it entirely
+                      await deleteDream(dream.id)
+                      onNavigate({ name: 'journal' })
+                      return
+                    }
+                    setEditing(false)
+                    setDraft('')
+                  }}
+                >
+                  cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="quiet-btn"
+                  onClick={() => {
+                    setDraft(dream.transcript)
+                    setEditing(true)
+                  }}
+                >
+                  edit
+                </button>
+                <button
+                  className="quiet-btn"
+                  onClick={() => {
+                    setTitleDraft(dream.title)
+                    setEditingTitle(true)
+                  }}
+                >
+                  rename
+                </button>
+                {signedIn && (
+                  <button className="quiet-btn" onClick={toggleShare}>
+                    {dream.shared ? 'shared ✓ · make private' : 'share to circle'}
+                  </button>
+                )}
+                {signedIn && (
+                  <button
+                    className="quiet-btn"
+                    title="Pinned dreams show on your profile to anyone signed in"
+                    onClick={togglePin}
+                  >
+                    {dream.pinned ? 'pinned ✓ · unpin' : 'pin to profile'}
+                  </button>
+                )}
+                <button className="quiet-btn danger" onClick={remove}>
+                  let it fade
+                </button>
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
