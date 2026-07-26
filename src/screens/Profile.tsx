@@ -35,6 +35,7 @@ import { Cloud } from '../components/Cloud'
 import { CloudAvatar } from '../components/CloudAvatar'
 import { Sheep } from '../components/Sheep'
 import { BirthChartForm } from '../components/BirthChartForm'
+import { Comments } from '../components/Comments'
 import { NatalWheel, NatalLegend, NatalSummary } from '../components/NatalWheel'
 import { computeNatalChart } from '../lib/astrology'
 import type { BirthChart, View } from '../lib/types'
@@ -350,25 +351,32 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
           </div>
         ) : (
           pinned.map((d) => (
-            <button
-              key={d.id}
-              className="dream-card"
-              onClick={() => setOpen(open === d.id ? null : d.id)}
-            >
-              <div className="dream-card-title">{d.title}</div>
-              <div className="dream-card-meta">
-                <Cloud mood={d.mood} size={14} />
-                <span>{formatNight(d.createdAt)}</span>
-                <span className="tag-row">
-                  {d.tags.map((t) => (
-                    <span key={t} className="tag">
-                      {t}
-                    </span>
-                  ))}
-                </span>
-              </div>
-              {open === d.id && <p className="feed-transcript">{d.transcript}</p>}
-            </button>
+            <div key={d.id} className="dream-card feed-card">
+              <button
+                className="feed-open"
+                aria-expanded={open === d.id}
+                onClick={() => setOpen(open === d.id ? null : d.id)}
+              >
+                <div className="dream-card-title">{d.title}</div>
+                <div className="dream-card-meta">
+                  <Cloud mood={d.mood} size={14} />
+                  <span>{formatNight(d.createdAt)}</span>
+                  <span className="tag-row">
+                    {d.tags.map((t) => (
+                      <span key={t} className="tag">
+                        {t}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              </button>
+              {open === d.id && (
+                <>
+                  <p className="feed-transcript">{d.transcript}</p>
+                  <Comments dreamId={d.id} ownerView={mine} onNavigate={onNavigate} />
+                </>
+              )}
+            </div>
           ))
         )}
       </section>

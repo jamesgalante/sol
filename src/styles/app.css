@@ -1409,6 +1409,74 @@ textarea {
   padding: 0;
 }
 
+/* ——— comments ——— */
+.feed-card {
+  cursor: default;
+}
+.feed-card:hover {
+  padding-left: 0;
+}
+.feed-open {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+}
+.comments {
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.875rem;
+}
+.comment-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  padding: 0.3rem 0;
+}
+.comment-author {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--fog);
+  flex-shrink: 0;
+}
+.comment-author-link {
+  cursor: pointer;
+  transition: color 0.25s var(--ease);
+}
+.comment-author-link:hover {
+  color: var(--dawn);
+}
+.comment-body {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--bone);
+  overflow-wrap: anywhere;
+}
+.comment-del {
+  color: var(--fog-dim);
+  font-size: 0.875rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+  transition: color 0.25s var(--ease);
+}
+.comment-del:hover {
+  color: var(--danger);
+}
+.comment-input-row {
+  margin-top: 0.5rem;
+}
+.detail-comments {
+  margin-top: 2rem;
+}
+.detail-comments .comments {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
 /* ——— empty states / circle ——— */
 .empty {
   flex: 1;

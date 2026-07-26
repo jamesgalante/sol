@@ -336,3 +336,62 @@ export async function pushBirthChart(c: BirthChart): Promise<void> {
   if (!uid) return
   await supabase.from('birth_charts').upsert(toBirthChartRow(c, uid))
 }
+
+/* ——— comments ——— */
+
+export interface DreamComment {
+  id: string
+  dreamId: string
+  userId: string
+  username: string
+  body: string
+  createdAt: number
+}
+
+export async function listComments(dreamId: string): Promise<DreamComment[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('comments')
+    .select('id, dream_id, user_id, body, created_at, profiles!comments_user_id_fkey(username)')
+    .eq('dream_id', dreamId)
+    .order('created_at', { ascending: true })
+    .limit(200)
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    dreamId: r.dream_id,
+    userId: r.user_id,
+    username: r.profiles?.username ?? '?',
+    body: r.body,
+    createdAt: new Date(r.created_at).getTime(),
+  }))
+}
+
+export async function addComment(
+  dreamId: string,
+  body: string,
+): Promise<{ comment?: DreamComment; error?: string }> {
+  if (!supabase) return { error: 'offline' }
+  const me = await myProfile()
+  if (!me) return { error: 'not signed in' }
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({ dream_id: dreamId, user_id: me.id, body })
+    .select('id, created_at')
+    .single()
+  if (error || !data) return { error: error?.message ?? 'could not comment' }
+  return {
+    comment: {
+      id: data.id,
+      dreamId,
+      userId: me.id,
+      username: me.username,
+      body,
+      createdAt: new Date(data.created_at).getTime(),
+    },
+  }
+}
+
+export async function deleteComment(id: string): Promise<void> {
+  if (!supabase) return
+  await supabase.from('comments').delete().eq('id', id)
+}
