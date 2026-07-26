@@ -21,16 +21,34 @@ const STARS = [
 ]
 
 /**
+ * A dev-only clock override: set VITE_SKY_TIME in .env.local to an hour
+ * ("14", "14.5") or "HH:MM" ("14:30") to preview the sky at that time.
+ * Returns undefined (→ real clock) in production or when unset/unparseable.
+ */
+function overrideNow(): number | undefined {
+  if (!import.meta.env.DEV) return undefined
+  const raw = import.meta.env.VITE_SKY_TIME
+  if (!raw) return undefined
+  const [hStr, mStr] = String(raw).split(':')
+  const h = Number(hStr)
+  if (Number.isNaN(h)) return undefined
+  const m = mStr !== undefined ? Number(mStr) : (h % 1) * 60
+  const d = new Date()
+  d.setHours(Math.floor(h), Math.floor(m) || 0, 0, 0)
+  return d.getTime()
+}
+
+/**
  * Full-viewport time-of-day sky behind every screen. Always the dark indigo
  * night (there is no light mode); time is shown by which body is up, where it
  * sits on its arc, and how warm the horizon glow reads. See DESIGN.md.
  */
 export function Sky() {
-  const [sky, setSky] = useState(() => skyState())
+  const [sky, setSky] = useState(() => skyState(overrideNow()))
 
   useEffect(() => {
     // drift the body across the sky while the app stays open
-    const id = setInterval(() => setSky(skyState()), 60_000)
+    const id = setInterval(() => setSky(skyState(overrideNow())), 60_000)
     return () => clearInterval(id)
   }, [])
 
