@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { saveBirthChart } from '../lib/db'
 import { pushBirthChart } from '../lib/sync'
 import { searchPlaces, type GeoPlace } from '../lib/geocode'
+import { DatePicker, TimePicker, useCoarsePointer } from './DateTimePicker'
 import type { BirthChart } from '../lib/types'
 
 /**
@@ -41,6 +42,7 @@ export function BirthChartForm({
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const skipQuery = useRef(false) // don't re-search right after a pick
+  const coarse = useCoarsePointer() // touch → native picker; desktop → themed
 
   // Debounced place search — skips the lookup right after the user picks one.
   useEffect(() => {
@@ -60,6 +62,18 @@ export function BirthChartForm({
     }, 300)
     return () => clearTimeout(id)
   }, [birthPlace])
+
+  // Open the native date/time picker on any click, not just the small icon —
+  // this mirrors the mobile tap-to-open behaviour on desktop browsers.
+  // showPicker() needs a user gesture (this click supplies it) and is absent
+  // on older browsers, so guard both.
+  function openPicker(e: MouseEvent<HTMLInputElement>) {
+    try {
+      e.currentTarget.showPicker?.()
+    } catch {
+      // Some browsers throw (e.g. cross-origin frames); fall back to focus.
+    }
+  }
 
   function pick(place: GeoPlace) {
     skipQuery.current = true
@@ -109,35 +123,46 @@ export function BirthChartForm({
   }
 
   return (
-    <>
-      <div className="auth-row">
-        <input
-          className="auth-input"
-          type="date"
-          value={birthDate}
-          onChange={(e) => setBirthDate(e.target.value)}
-        />
-      </div>
-      <div className="auth-row">
-        <input
-          className="auth-input"
-          type="time"
-          value={birthTime}
-          disabled={timeUnknown}
-          onChange={(e) => setBirthTime(e.target.value)}
-        />
-      </div>
-      <div className="auth-row">
-        <label className="auth-sub" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+    <div className="birth-form">
+      <div className="birth-field">
+        <span className="birth-label">date of birth</span>
+        {coarse ? (
           <input
-            type="checkbox"
-            checked={timeUnknown}
-            onChange={(e) => setTimeUnknown(e.target.checked)}
+            className="auth-input"
+            type="date"
+            value={birthDate}
+            onChange={(e) => setBirthDate(e.target.value)}
+            onClick={openPicker}
           />
-          I don't know my birth time
-        </label>
+        ) : (
+          <DatePicker value={birthDate} onChange={setBirthDate} />
+        )}
       </div>
-      <div className="auth-row" style={{ position: 'relative' }}>
+      <div className="birth-field">
+        <span className="birth-label">time of birth</span>
+        {coarse ? (
+          <input
+            className="auth-input"
+            type="time"
+            value={birthTime}
+            disabled={timeUnknown}
+            onChange={(e) => setBirthTime(e.target.value)}
+            onClick={openPicker}
+          />
+        ) : (
+          <TimePicker value={birthTime} onChange={setBirthTime} disabled={timeUnknown} />
+        )}
+      </div>
+      <label className="birth-check">
+        <input
+          type="checkbox"
+          checked={timeUnknown}
+          onChange={(e) => setTimeUnknown(e.target.checked)}
+        />
+        <span>I don't know my birth time</span>
+      </label>
+      <div className="birth-field" style={{ position: 'relative' }}>
+        <span className="birth-label">place of birth</span>
         <input
           className="auth-input"
           type="text"
@@ -162,7 +187,7 @@ export function BirthChartForm({
           </ul>
         )}
       </div>
-      <div className="auth-row">
+      <div className="birth-actions">
         <button className="auth-btn" onClick={save} disabled={busy || !birthDate}>
           {busy ? '…' : 'save'}
         </button>
@@ -172,10 +197,10 @@ export function BirthChartForm({
           </button>
         )}
       </div>
-      <div className="auth-sub">
+      <p className="auth-sub birth-note">
         Pick your birth place from the list so we can place your Rising sign and houses. Birth
         time is optional — without it the chart shows planets by sign only, not the Rising sign.
-      </div>
-    </>
+      </p>
+    </div>
   )
 }

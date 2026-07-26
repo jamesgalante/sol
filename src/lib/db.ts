@@ -3,7 +3,7 @@
 import type { BirthChart, Dream } from './types'
 
 const DB_NAME = 'sol'
-const DB_VERSION = 2
+const DB_VERSION = 3
 const BIRTH_CHART_KEY = 'me'
 
 function open(): Promise<IDBDatabase> {
@@ -19,6 +19,10 @@ function open(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains('birthChart')) {
         db.createObjectStore('birthChart')
+      }
+      // Cached LLM Sky Reading narratives, keyed by dream id; value = string[].
+      if (!db.objectStoreNames.contains('readings')) {
+        db.createObjectStore('readings')
       }
     }
     req.onsuccess = () => {
@@ -101,4 +105,20 @@ export function saveBirthChart(chart: BirthChart): Promise<void> {
   return tx(['birthChart'], 'readwrite', (t) => {
     t.objectStore('birthChart').put(chart, BIRTH_CHART_KEY)
   })
+}
+
+// Per-dream cache of the LLM-generated Sky Reading narrative, so the paid call
+// happens once per dream. Invalidated on transcript edit (see DreamDetail).
+export function getCachedNarrative(id: string): Promise<string[] | undefined> {
+  return tx(['readings'], 'readonly', (t) => t.objectStore('readings').get(id))
+}
+
+export function saveCachedNarrative(id: string, narrative: string[]): Promise<void> {
+  return tx(['readings'], 'readwrite', (t) => {
+    t.objectStore('readings').put(narrative, id)
+  })
+}
+
+export function clearCachedNarrative(id: string): Promise<void> {
+  return tx(['readings'], 'readwrite', (t) => t.objectStore('readings').delete(id))
 }

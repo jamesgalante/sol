@@ -6,6 +6,9 @@ import type { BirthChart, Dream } from '../lib/types'
 import { ZODIAC } from '../lib/types'
 import { computeNatalChart, glyphFor, noteFor } from '../lib/astrology'
 import { transitSky, skyReading } from '../lib/skyReading'
+import { fetchRemoteNarrative } from '../lib/skyReadingRemote'
+import { getCachedNarrative, saveCachedNarrative } from '../lib/db'
+import { llmEnabled, supabase } from '../lib/supabase'
 import { NatalSummary } from './NatalWheel'
 import { BirthChartForm } from './BirthChartForm'
 
@@ -13,24 +16,58 @@ export function SkyPanel({
   dream,
   birthChart,
   onChartSaved,
-  ready,
 }: {
   dream: Dream
   birthChart: BirthChart | null
   onChartSaved: (chart: BirthChart) => void
-  /** false while the (simulated) reading is still being "generated" */
-  ready: boolean
 }) {
   const natal = useMemo(() => computeNatalChart(birthChart), [birthChart])
   const transit = useMemo(() => transitSky(dream.createdAt), [dream.createdAt])
-  const reading = useMemo(
+  // The local reading is the fallback AND the source of placements/symbolKeys —
+  // those stay deterministic; only the narrative may be overridden by the LLM.
+  const localReading = useMemo(
     () => (natal ? skyReading(dream, natal, transit) : null),
     [dream, natal, transit],
   )
 
+  // The prose. null → still resolving (show the loader). Resolves, in order, from
+  // the IndexedDB cache, the allowlisted LLM path, or the local narrative. Any
+  // failure / not-allowlisted / offline falls back to local — the app never
+  // requires the network.
+  const [narrative, setNarrative] = useState<string[] | null>(null)
+  useEffect(() => {
+    if (!natal || !localReading) return
+    let cancelled = false
+    setNarrative(null) // show the loader while we resolve
+    ;(async () => {
+      const cached = await getCachedNarrative(dream.id)
+      if (cancelled) return
+      if (cached) return setNarrative(cached)
+
+      const email = (await supabase?.auth.getSession())?.data.session?.user.email
+      if (llmEnabled(email)) {
+        try {
+          const remote = await fetchRemoteNarrative(dream, natal, transit)
+          if (cancelled) return
+          await saveCachedNarrative(dream.id, remote)
+          if (cancelled) return
+          return setNarrative(remote)
+        } catch {
+          /* fall through to the local reading */
+        }
+      }
+      if (!cancelled) setNarrative(localReading.narrative)
+    })()
+    return () => {
+      cancelled = true
+    }
+    // localReading is derived from natal + transit, both in the deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dream.id, natal, transit])
+
   // No chart yet (never set up, or skipped) → prompt setup inline, mirroring Me.tsx.
   // Shown immediately — there's nothing to "analyze" without a chart.
-  if (!natal || !reading) {
+  if (!natal || !localReading) {
     return (
       <div className="sky-empty">
         <div className="auth-card">
@@ -45,10 +82,10 @@ export function SkyPanel({
     )
   }
 
-  // The reading is composed locally, but we let it "generate" first — see SkyLoader.
-  if (!ready) return <SkyLoader />
+  // Narrative still resolving (cache / LLM / local) — SkyLoader is the pending state.
+  if (narrative === null) return <SkyLoader />
 
-  const extras = reading.placements.filter(
+  const extras = localReading.placements.filter(
     (p) => p.point !== 'Sun' && p.point !== 'Moon' && p.point !== 'ASC',
   )
 
@@ -65,8 +102,8 @@ export function SkyPanel({
       </p>
 
       {/* 2 — the connection (the reading) */}
-      <p className="sky-quote">{reading.narrative[0]}</p>
-      {reading.narrative.slice(1).map((para, i) => (
+      <p className="sky-quote">{narrative[0]}</p>
+      {narrative.slice(1).map((para, i) => (
         <p key={i} className="transcript sky-para">
           {para}
         </p>
@@ -95,11 +132,11 @@ export function SkyPanel({
       )}
 
       {/* 4 — symbol key */}
-      {reading.symbolKeys.length > 0 && (
+      {localReading.symbolKeys.length > 0 && (
         <>
           <div className="stat-heading">Symbol key</div>
           <div className="tag-row sky-symbols">
-            {reading.symbolKeys.map((k) => (
+            {localReading.symbolKeys.map((k) => (
               <span key={k.tag} className="tag sky-symbol">
                 {k.tag} → {k.note}
               </span>
