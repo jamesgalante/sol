@@ -17,6 +17,7 @@ import { listDreams } from '../lib/db'
 import { formatClock } from '../lib/time'
 import { Cloud } from '../components/Cloud'
 import { CloudAvatar } from '../components/CloudAvatar'
+import { Comments } from '../components/Comments'
 import { itemsEarned } from '../lib/achievements'
 import type { Mood, View } from '../lib/types'
 
@@ -179,35 +180,39 @@ function LiveCircle({ onNavigate }: { onNavigate: (v: View) => void }) {
         <section className="night-group">
           <div className="night-label">From your circle</div>
           {dreams.map((d) => (
-            <button
-              key={d.id}
-              className="dream-card"
-              onClick={() => setOpen(open === d.id ? null : d.id)}
-            >
+            <div key={d.id} className="dream-card feed-card">
               <span
                 className="circle-author circle-author-link"
                 role="link"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onNavigate({ name: 'profile', username: d.username })
-                }}
+                onClick={() => onNavigate({ name: 'profile', username: d.username })}
               >
                 @{d.username}
               </span>
-              <div className="dream-card-title">{d.title}</div>
-              <div className="dream-card-meta">
-                <Cloud mood={d.mood as Mood} size={14} />
-                <span>{formatClock(d.createdAt)}</span>
-                <span className="tag-row">
-                  {d.tags.map((t) => (
-                    <span key={t} className="tag">
-                      {t}
-                    </span>
-                  ))}
-                </span>
-              </div>
-              {open === d.id && <p className="feed-transcript">{d.transcript}</p>}
-            </button>
+              <button
+                className="feed-open"
+                aria-expanded={open === d.id}
+                onClick={() => setOpen(open === d.id ? null : d.id)}
+              >
+                <div className="dream-card-title">{d.title}</div>
+                <div className="dream-card-meta">
+                  <Cloud mood={d.mood as Mood} size={14} />
+                  <span>{formatClock(d.createdAt)}</span>
+                  <span className="tag-row">
+                    {d.tags.map((t) => (
+                      <span key={t} className="tag">
+                        {t}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              </button>
+              {open === d.id && (
+                <>
+                  <p className="feed-transcript">{d.transcript}</p>
+                  <Comments dreamId={d.id} onNavigate={onNavigate} />
+                </>
+              )}
+            </div>
           ))}
         </section>
       )}

@@ -59,6 +59,11 @@ If text is *a dream or about dreaming* → display italic. If it's *data*
 - Reuse the existing vocabulary before inventing: `quiet-btn`, `auth-btn`
   (gold pill — one per screen max), `auth-card`, `dream-card`, `tag`,
   `stat-heading`, `friend-row`, `goto-card`.
+- **Form fields are underlines, never boxes** (decided 2026-07-26): no
+  outlines, no fills, no rounding — a single hairline under the text that
+  turns gold on focus (`auth-input`, `dt-part`). Dates/times enter as
+  segmented parts (`mm / dd / yyyy`). Cards are reserved for interactive
+  machinery like sign-in; content and fields sit on the night itself.
 
 ## Motion
 

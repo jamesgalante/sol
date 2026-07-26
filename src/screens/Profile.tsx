@@ -34,10 +34,19 @@ import {
 import { Cloud } from '../components/Cloud'
 import { CloudAvatar } from '../components/CloudAvatar'
 import { Sheep } from '../components/Sheep'
-import { BirthChartForm } from '../components/BirthChartForm'
+import { Comments } from '../components/Comments'
 import { NatalWheel, NatalLegend, NatalSummary } from '../components/NatalWheel'
 import { computeNatalChart } from '../lib/astrology'
 import type { BirthChart, View } from '../lib/types'
+
+/** "1998-02-03" → "Feb 3, 1998" — for the one-line chart summary. */
+function formatBirthDate(iso: string | null): string {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-').map(Number)
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  if (!y || !m || !d) return iso
+  return `${MONTHS[m - 1]} ${d}, ${y}`
+}
 
 export function Profile({ username, onNavigate }: { username: string; onNavigate: (v: View) => void }) {
   const [state, setState] = useState<'loading' | 'signed-out' | 'missing' | 'ready'>('loading')
@@ -55,8 +64,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [bioDraft, setBioDraft] = useState('')
   const [error, setError] = useState('')
   const [birthChart, setBirthChart] = useState<BirthChart | null | undefined>(undefined)
-  const [editingChart, setEditingChart] = useState(false)
-  const [showFullChart, setShowFullChart] = useState(false)
+  const [ptab, setPtab] = useState<'dreams' | 'cloud' | 'sky' | 'people'>('dreams')
   const natal = useMemo(() => computeNatalChart(birthChart ?? null), [birthChart])
 
   useEffect(() => {
@@ -224,6 +232,9 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
             <button className="auth-btn" onClick={saveProfile}>
               save
             </button>
+            <button className="quiet-btn" onClick={() => onNavigate({ name: 'birth-chart' })}>
+              birth details →
+            </button>
           </div>
           {error && <div className="auth-error">{error}</div>}
         </div>
@@ -231,62 +242,86 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
         person.bio && <p className="profile-bio">{person.bio}</p>
       )}
 
-      {mine && birthChart !== undefined && (
-        <div className="auth-card">
-          <div className="auth-title">Your birth chart</div>
-          {editingChart || !birthChart || birthChart.skipped ? (
-            <BirthChartForm
-              initial={birthChart ?? null}
-              onSaved={(c) => {
-                setBirthChart(c)
-                setEditingChart(false)
-              }}
-            />
-          ) : (
-            <>
-              {natal && <NatalSummary chart={natal} />}
-              {natal && (
-                <button className="quiet-btn" onClick={() => setShowFullChart((v) => !v)}>
-                  {showFullChart ? 'Hide full chart' : 'See full natal chart'}
-                </button>
-              )}
-              {natal && showFullChart && (
-                <>
-                  <NatalWheel chart={natal} />
-                  {!natal.hasHouses && (
-                    <p className="natal-caveat">
-                      Add an exact birth time and pick your birth place to unlock your Rising sign
-                      and houses. Planet signs shown are computed at local noon.
-                    </p>
-                  )}
-                  <NatalLegend chart={natal} />
-                </>
-              )}
-              <div className="auth-row">
-                <div className="auth-sub" style={{ margin: 0 }}>
-                  {birthChart.birthDate}
-                  {birthChart.timeUnknown
-                    ? ' · time unknown'
-                    : birthChart.birthTime && ` · ${birthChart.birthTime}`}
-                  {(birthChart.placeLabel || birthChart.birthPlace) &&
-                    ` · ${birthChart.placeLabel || birthChart.birthPlace}`}
-                </div>
-                <button
-                  className="quiet-btn"
-                  onClick={() => {
-                    setShowFullChart(false)
-                    setEditingChart(true)
-                  }}
-                >
-                  edit
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      <div className="sky-seg profile-tabs" role="tablist" aria-label="Profile sections">
+        <button
+          className="sky-seg-btn"
+          role="tab"
+          aria-current={ptab === 'dreams'}
+          onClick={() => setPtab('dreams')}
+        >
+          Dreams
+        </button>
+        <button
+          className="sky-seg-btn"
+          role="tab"
+          aria-current={ptab === 'cloud'}
+          onClick={() => setPtab('cloud')}
+        >
+          Cloud
+        </button>
+        {mine && (
+          <button
+            className="sky-seg-btn"
+            role="tab"
+            aria-current={ptab === 'sky'}
+            onClick={() => setPtab('sky')}
+          >
+            Sky
+          </button>
+        )}
+        {mine && (
+          <button
+            className="sky-seg-btn"
+            role="tab"
+            aria-current={ptab === 'people'}
+            onClick={() => setPtab('people')}
+          >
+            People
+          </button>
+        )}
+      </div>
 
-      {mine && (
+      {ptab === 'sky' &&
+        mine &&
+        birthChart !== undefined &&
+        (!birthChart || birthChart.skipped || !birthChart.birthDate ? (
+          // nothing filled yet: one quiet line linking to the page
+          <button className="chart-prompt" onClick={() => onNavigate({ name: 'birth-chart' })}>
+            <span className="chart-prompt-glyph" aria-hidden>
+              ✶
+            </span>
+            fill in your birth chart
+            <span className="goto-arrow">→</span>
+          </button>
+        ) : (
+          <div className="chart-block">
+            {natal && <NatalSummary chart={natal} />}
+            <p className="chart-line-meta">
+              {formatBirthDate(birthChart.birthDate)}
+              {birthChart.timeUnknown
+                ? ''
+                : birthChart.birthTime
+                  ? ` · ${birthChart.birthTime}`
+                  : ''}
+              {(birthChart.placeLabel || birthChart.birthPlace) &&
+                ` · ${birthChart.placeLabel || birthChart.birthPlace}`}
+            </p>
+            {natal && (
+              <div className="chart-open">
+                <NatalWheel chart={natal} />
+                {!natal.hasHouses && (
+                  <p className="natal-caveat">
+                    Add an exact birth time and pick your birth place to unlock your Rising sign
+                    and houses. Planet signs shown are computed at local noon.
+                  </p>
+                )}
+                <NatalLegend chart={natal} />
+              </div>
+            )}
+          </div>
+        ))}
+
+      {ptab === 'cloud' && mine && (
         <div className="color-picker">
           {CLOUD_COLORS.map((c) => {
             const open = colorUnlocked(c, unlocks)
@@ -307,7 +342,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
         </div>
       )}
 
-      {stats && (
+      {ptab === 'dreams' && stats && (
         <div className="profile-stats">
           <span className="friend-stat">{stats.total} kept</span>
           <span className="friend-stat">{stats.last_week} this week</span>
@@ -316,6 +351,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
         </div>
       )}
 
+      {ptab === 'dreams' && (
       <section className="stat-section">
         <div className="stat-heading">Pinned dreams</div>
         {pinned.length === 0 ? (
@@ -329,29 +365,38 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
           </div>
         ) : (
           pinned.map((d) => (
-            <button
-              key={d.id}
-              className="dream-card"
-              onClick={() => setOpen(open === d.id ? null : d.id)}
-            >
-              <div className="dream-card-title">{d.title}</div>
-              <div className="dream-card-meta">
-                <Cloud mood={d.mood} size={14} />
-                <span>{formatNight(d.createdAt)}</span>
-                <span className="tag-row">
-                  {d.tags.map((t) => (
-                    <span key={t} className="tag">
-                      {t}
-                    </span>
-                  ))}
-                </span>
-              </div>
-              {open === d.id && <p className="feed-transcript">{d.transcript}</p>}
-            </button>
+            <div key={d.id} className="dream-card feed-card">
+              <button
+                className="feed-open"
+                aria-expanded={open === d.id}
+                onClick={() => setOpen(open === d.id ? null : d.id)}
+              >
+                <div className="dream-card-title">{d.title}</div>
+                <div className="dream-card-meta">
+                  <Cloud mood={d.mood} size={14} />
+                  <span>{formatNight(d.createdAt)}</span>
+                  <span className="tag-row">
+                    {d.tags.map((t) => (
+                      <span key={t} className="tag">
+                        {t}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              </button>
+              {open === d.id && (
+                <>
+                  <p className="feed-transcript">{d.transcript}</p>
+                  <Comments dreamId={d.id} ownerView={mine} onNavigate={onNavigate} />
+                </>
+              )}
+            </div>
           ))
         )}
       </section>
+      )}
 
+      {ptab === 'cloud' && (
       <section className="stat-section">
         <div className="stat-heading">Achievements</div>
         {ACHIEVEMENTS.map((a) => {
@@ -370,8 +415,9 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
           </p>
         )}
       </section>
+      )}
 
-      {mine && (
+      {ptab === 'people' && mine && (
         <>
           <section className="stat-section">
             <div className="stat-heading">Followers</div>
@@ -430,19 +476,21 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
               ))
             )}
           </section>
-
-          <div className="detail-actions">
-            <button
-              className="quiet-btn"
-              onClick={async () => {
-                await supabase?.auth.signOut()
-                onNavigate({ name: 'circle' })
-              }}
-            >
-              sign out
-            </button>
-          </div>
         </>
+      )}
+
+      {mine && (
+        <div className="detail-actions">
+          <button
+            className="quiet-btn"
+            onClick={async () => {
+              await supabase?.auth.signOut()
+              onNavigate({ name: 'circle' })
+            }}
+          >
+            sign out
+          </button>
+        </div>
       )}
     </div>
   )

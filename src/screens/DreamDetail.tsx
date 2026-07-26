@@ -13,6 +13,7 @@ import { pushDream, deleteCloudDream, currentUserId, myBirthChart } from '../lib
 import { categorize, detectMood, dreamMood, titleFrom } from '../lib/categorize'
 import { Cloud, MOOD_LABEL } from '../components/Cloud'
 import { SkyPanel } from '../components/SkyPanel'
+import { Comments } from '../components/Comments'
 import { formatClock, formatDuration, nightLabel } from '../lib/time'
 import type { BirthChart, Dream, View } from '../lib/types'
 
@@ -215,6 +216,13 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
             <p className="transcript">{dream.transcript}</p>
           ) : (
             <p className="transcript transcript-empty">No words were caught.</p>
+          )}
+
+          {!editing && signedIn && (dream.shared || dream.pinned) && (
+            <section className="stat-section detail-comments">
+              <div className="stat-heading">Comments</div>
+              <Comments dreamId={dream.id} ownerView onNavigate={onNavigate} />
+            </section>
           )}
 
           <div className="detail-actions">
