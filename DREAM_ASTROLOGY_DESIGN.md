@@ -36,39 +36,57 @@ open technical decisions implementation sessions still need to make.
 
 ---
 
-## 1. Prerequisite: birth chart setup
+## 1. Prerequisite: birth chart setup — ✅ implemented
 
-The reading can't exist without real birth data. There is currently no onboarding or
-profile screen in the app at all, so this is new surface area.
+**Status:** the data-collection half of this section is done. What's below is now the
+as-built record, not just a plan — see deviations from the original spec called out inline.
 
-**Data needed, captured once (settings/onboarding screen, new):**
+Raw birth data is collected (skippable at signup, editable later), stored locally and
+mirrored to Supabase. The **ephemeris computation itself is not part of this** — no chart
+is computed yet, so the Sky Reading (§2) still can't render from this data as-is. That
+remains the next slice of work.
+
+**Data captured, once per user:**
 - Birth date — required.
-- Birth time — optional, with an explicit "I don't know my birth time" toggle. Time
-  determines the Rising sign and house placements; without it, the reading must degrade
-  to Sun + Moon (+ sign-level, not house-level, planet placements) rather than guess.
-- Birth place — required (city search → lat/long + timezone), needed for houses and to
-  convert local birth time to UT for the ephemeris calculation.
+- Birth time — optional, with an explicit "I don't know my birth time" toggle, exactly as
+  specced: without it the reading will need to degrade to Sun + Moon rather than guess a
+  Rising sign.
+- Birth place — **free text only** (e.g. "Portland, OR"), not the city-search →
+  lat/long/timezone flow originally specced here. Geocoding was deliberately deferred: it's
+  only needed once house placements / UT conversion (i.e. actual ephemeris work) begins, so
+  building it now would be speculative. Revisit when picking the ephemeris approach below.
 
-**Where it lives:**
-- A new settings entry point (the app currently has no settings screen — smallest version
-  is a card reachable from `Header` or `Nav`, e.g. tapping the user's name/avatar).
-- First-run prompt: the first time a signed-in user opens a dream's Sky Reading without a
-  chart on file, show the setup form inline rather than making them hunt for settings.
+**Where it lives — deviates from the original plan:**
+- No standalone settings/onboarding screen was built. Instead it folds into the profile
+  surface that already exists (or, in an earlier draft of this change, was folded into
+  `Circle.tsx` — that surface was reorganized out from under this feature by a later
+  "friends-first Circle" restructure, so it now lives where "you" actually lives):
+  `src/screens/Me.tsx` (the center-tab sign-in gate) for first-run, and
+  `src/screens/Profile.tsx` (the editable profile page) for later edits.
+- First-run prompt fires in `Me.tsx` right after a user claims a username (`ClaimName`,
+  now in `src/components/Auth.tsx`) — the true "signup" moment — rather than at first Sky
+  Reading view, since the Sky Reading page doesn't exist yet. Skipping persists a
+  `skipped: true` row so the prompt never reappears; a "Your birth chart" card on the
+  signed-in user's own `Profile` page (next to the existing bio/display-name editor) lets
+  them fill it in later or edit it, satisfying the "retroactively add" requirement.
 
-**Data model additions:**
-- Supabase: extend `profiles` (`supabase/migrations/001_init.sql`) with birth date/time
-  (nullable time)/place/timezone columns, or a new `birth_charts` table keyed by
-  `profile.id` if the fields feel like they don't belong on `profiles` directly.
-- Store the **computed chart** (placements: sign + degree + house per planet, plus the
-  angles) as structured JSON alongside the raw inputs, computed once at save time — not
-  recomputed on every page load.
-- Local-first mirror: since dreams live in IndexedDB first and sync to Supabase only when
-  signed in (`src/lib/db.ts`, `src/lib/sync.ts`), the chart should follow the same
-  pattern — usable offline once computed, synced when signed in.
+**Data model, as built:**
+- New `birth_charts` table (`supabase/migrations/004_birth_chart.sql`), not an extension of
+  `profiles` — one row per profile (`id` is both PK and FK to `profiles.id`), RLS-gated to
+  the owning user only. Columns: `birth_date`, `birth_time`, `time_unknown`, `birth_place`,
+  `skipped`, `updated_at`. No computed-chart JSON column yet — that's added once ephemeris
+  work starts.
+- Local-first mirror: a new `birthChart` IndexedDB store (`src/lib/db.ts`, bumped
+  `DB_VERSION` 1→2) + `myBirthChart`/`pushBirthChart` in `src/lib/sync.ts`, following the
+  exact same local-first/fire-and-forget-cloud pattern as dreams. Reads check IndexedDB
+  first, falling back to Supabase (and mirroring the hit back to IndexedDB) so a second
+  device picks up data entered on the first.
+- New shared `src/components/BirthChartForm.tsx` — the fields-only form used by both the
+  first-run prompt and the later edit card.
 
-**Open decision:** which ephemeris/calculation approach to use (a JS ephemeris package vs.
-an edge function calling an external API). Pick this in the implementation session; the
-important constraint is that it runs from real astronomical data, not a lookup table.
+**Open decision, unchanged:** which ephemeris/calculation approach to use (a JS ephemeris
+package vs. an edge function calling an external API) is still unresolved — pick this when
+starting §2/§3. That decision will also determine whether/how birth place needs geocoding.
 
 ---
 
@@ -117,9 +135,9 @@ Sans for UI, Geist Mono for tags/eyebrows):**
    correct their input.
 
 **Empty / incomplete states (reuse existing visual patterns rather than invent new ones):**
-- **No chart set up** → inline card using the `.preview-band` / `.auth-card` treatment
-  already established in `src/screens/Circle.tsx`, prompting birth data entry with a
-  one-line explanation of why it's needed.
+- **No chart set up** → inline card using the `.auth-card` treatment already established
+  for birth-chart entry in `src/screens/Me.tsx`/`src/screens/Profile.tsx` (§1), prompting
+  birth data entry with a one-line explanation of why it's needed.
 - **Chart set up, reading not yet generated** → skeleton/shimmer placeholders for the
   narrative and placement cards — no spinner, matches the app's calm pacing.
 - **Reading generation fails** (LLM/network) → still render sections 1, 2, and 4 (all
@@ -163,15 +181,18 @@ first; do not start this before the per-dream reading ships.
 
 ## 5. New surface area (for scoping implementation sessions)
 
-- `src/lib/types.ts` — extend `View`, add `BirthChart`/chart-placement types.
+- `src/lib/types.ts` — extend `View`, add chart-placement types (`BirthChart` itself is
+  already in place — §1).
 - `src/App.tsx` — routing for the new tab/view.
 - `src/screens/DreamDetail.tsx` — add the Sky tab.
-- New: a settings/birth-data screen (doesn't exist today in any form).
+- Birth-data collection is done (§1) — `src/screens/Me.tsx` / `src/screens/Profile.tsx`.
+  Still needed: the actual chart computation.
 - New: `src/lib/astrology.ts` (chart computation from birth data) and
   `src/lib/skyReading.ts` (LLM call + structured output for a given dream + chart).
-- `supabase/migrations/` — new migration for birth data + chart storage.
-- `src/lib/db.ts` / `src/lib/sync.ts` — extend local-first storage + sync for the chart,
-  following the existing dream sync pattern.
+- `supabase/migrations/` — new migration adding the computed-chart JSON column to
+  `birth_charts` (§1's table already exists).
+- `src/lib/db.ts` / `src/lib/sync.ts` — already extended for raw birth data (§1); extend
+  further for the computed chart, following the existing dream sync pattern.
 - No new design tokens expected — reuse `tokens.css` and existing utility classes
   (`.screen-title`, `.dream-card`, `.preview-band`, `.auth-card`).
 

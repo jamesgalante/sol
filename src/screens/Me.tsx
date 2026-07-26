@@ -3,17 +3,20 @@
 // claim it; otherwise → your profile.
 import { useEffect, useState } from 'react'
 import { supabase, cloudEnabled } from '../lib/supabase'
-import { myProfile, type Profile as ProfileRow } from '../lib/sync'
+import { myBirthChart, myProfile, type Profile as ProfileRow } from '../lib/sync'
+import { getBirthChart, saveBirthChart } from '../lib/db'
 import { SignIn, ClaimName } from '../components/Auth'
 import { CloudAvatar } from '../components/CloudAvatar'
+import { BirthChartForm } from '../components/BirthChartForm'
 import { Profile } from './Profile'
-import type { View } from '../lib/types'
+import type { BirthChart, View } from '../lib/types'
 
 export function Me({ onNavigate }: { onNavigate: (v: View) => void }) {
   const [session, setSession] = useState(false)
   // undefined = still asking the server; null = confirmed no profile yet
   const [profile, setProfile] = useState<ProfileRow | null | undefined>(undefined)
   const [checked, setChecked] = useState(!cloudEnabled())
+  const [birthChart, setBirthChart] = useState<BirthChart | null | undefined>(undefined)
 
   useEffect(() => {
     if (!supabase) return
@@ -31,6 +34,25 @@ export function Me({ onNavigate }: { onNavigate: (v: View) => void }) {
       myProfile().then(setProfile)
     } else setProfile(null)
   }, [session])
+
+  // load the birth chart: local IndexedDB first, falling back to the cloud
+  // (the "second device" case — local is empty but a row already exists)
+  useEffect(() => {
+    if (!profile) {
+      setBirthChart(undefined)
+      return
+    }
+    getBirthChart().then((local) => {
+      if (local) {
+        setBirthChart(local)
+        return
+      }
+      myBirthChart().then((remote) => {
+        if (remote) saveBirthChart(remote)
+        setBirthChart(remote ?? null)
+      })
+    })
+  }, [profile?.id])
 
   if (!checked) return null
   // signed in but profile still loading — render nothing, never a flash
@@ -63,6 +85,32 @@ export function Me({ onNavigate }: { onNavigate: (v: View) => void }) {
           <h1 className="welcome-title">Almost — name your cloud.</h1>
         </div>
         <ClaimName onClaimed={() => myProfile().then(setProfile)} />
+      </div>
+    )
+  }
+
+  if (birthChart === undefined) return null
+
+  if (birthChart === null) {
+    return (
+      <div>
+        <div className="auth-card">
+          <div className="auth-title">Add your birth chart</div>
+          <BirthChartForm
+            initial={null}
+            onSaved={setBirthChart}
+            onSkip={() =>
+              setBirthChart({
+                birthDate: null,
+                birthTime: null,
+                timeUnknown: false,
+                birthPlace: null,
+                skipped: true,
+                updatedAt: Date.now(),
+              })
+            }
+          />
+        </div>
       </div>
     )
   }

@@ -11,6 +11,7 @@ import {
   unfollow,
   isFollowing,
   friendStats,
+  myBirthChart,
   myProfile,
   pinnedDreams,
   profileByUsername,
@@ -21,7 +22,7 @@ import {
   type Profile as ProfileRow,
 } from '../lib/sync'
 import { formatNight } from '../lib/time'
-import { listDreams } from '../lib/db'
+import { getBirthChart, listDreams, saveBirthChart } from '../lib/db'
 import {
   ACHIEVEMENTS,
   CLOUD_COLORS,
@@ -33,7 +34,8 @@ import {
 import { Cloud } from '../components/Cloud'
 import { CloudAvatar } from '../components/CloudAvatar'
 import { Sheep } from '../components/Sheep'
-import type { View } from '../lib/types'
+import { BirthChartForm } from '../components/BirthChartForm'
+import type { BirthChart, View } from '../lib/types'
 
 export function Profile({ username, onNavigate }: { username: string; onNavigate: (v: View) => void }) {
   const [state, setState] = useState<'loading' | 'signed-out' | 'missing' | 'ready'>('loading')
@@ -50,6 +52,8 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [nameDraft, setNameDraft] = useState('')
   const [bioDraft, setBioDraft] = useState('')
   const [error, setError] = useState('')
+  const [birthChart, setBirthChart] = useState<BirthChart | null | undefined>(undefined)
+  const [editingChart, setEditingChart] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -80,6 +84,17 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
           updateProfile({ unlocks: merged })
           if (alive) setPerson({ ...p, unlocks: merged })
         }
+        // birth chart: local IndexedDB first, falling back to the cloud
+        // (the "second device" case — local is empty but a row already exists)
+        getBirthChart().then((local) => {
+          if (!alive) return
+          if (local) return setBirthChart(local)
+          myBirthChart().then((remote) => {
+            if (!alive) return
+            if (remote) saveBirthChart(remote)
+            setBirthChart(remote ?? null)
+          })
+        })
       }
     })()
     return () => {
@@ -210,6 +225,34 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
         </div>
       ) : (
         person.bio && <p className="profile-bio">{person.bio}</p>
+      )}
+
+      {mine && birthChart !== undefined && (
+        <div className="auth-card">
+          <div className="auth-title">Your birth chart</div>
+          {editingChart || !birthChart || birthChart.skipped ? (
+            <BirthChartForm
+              initial={birthChart ?? null}
+              onSaved={(c) => {
+                setBirthChart(c)
+                setEditingChart(false)
+              }}
+            />
+          ) : (
+            <div className="auth-row">
+              <div className="auth-sub" style={{ margin: 0 }}>
+                {birthChart.birthDate}
+                {birthChart.timeUnknown
+                  ? ' · time unknown'
+                  : birthChart.birthTime && ` · ${birthChart.birthTime}`}
+                {birthChart.birthPlace && ` · ${birthChart.birthPlace}`}
+              </div>
+              <button className="quiet-btn" onClick={() => setEditingChart(true)}>
+                edit
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {mine && (

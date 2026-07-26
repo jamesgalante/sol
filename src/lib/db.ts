@@ -1,9 +1,10 @@
 // Local-first storage. Dreams + audio blobs live in IndexedDB;
 // swap this module for a real backend later without touching the screens.
-import type { Dream } from './types'
+import type { BirthChart, Dream } from './types'
 
 const DB_NAME = 'sol'
-const DB_VERSION = 1
+const DB_VERSION = 2
+const BIRTH_CHART_KEY = 'me'
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -15,6 +16,9 @@ function open(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains('audio')) {
         db.createObjectStore('audio')
+      }
+      if (!db.objectStoreNames.contains('birthChart')) {
+        db.createObjectStore('birthChart')
       }
     }
     req.onsuccess = () => resolve(req.result)
@@ -65,4 +69,14 @@ export function deleteDream(id: string): Promise<void> {
 
 export function getAudio(id: string): Promise<Blob | undefined> {
   return tx(['audio'], 'readonly', (t) => t.objectStore('audio').get(id))
+}
+
+export function getBirthChart(): Promise<BirthChart | undefined> {
+  return tx(['birthChart'], 'readonly', (t) => t.objectStore('birthChart').get(BIRTH_CHART_KEY))
+}
+
+export function saveBirthChart(chart: BirthChart): Promise<void> {
+  return tx(['birthChart'], 'readwrite', (t) => {
+    t.objectStore('birthChart').put(chart, BIRTH_CHART_KEY)
+  })
 }
