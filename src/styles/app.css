@@ -1495,6 +1495,83 @@ textarea {
   color: var(--dawn);
   border-color: var(--dawn-deep);
 }
+.sky-seg-btn:disabled {
+  color: var(--fog-dim);
+  opacity: 0.5;
+  cursor: default;
+}
+.sky-seg-btn:disabled:hover {
+  color: var(--fog-dim);
+}
+
+/* ——— sky reading: the "generating" loader ——— */
+.sky-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 0;
+  animation: sky-fade-in 0.4s var(--ease);
+}
+.sky-loader-scene {
+  position: relative;
+  width: 12rem;
+  height: 9rem;
+}
+.sky-loader-moon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--dawn);
+  animation: sky-moon-glow 3.2s ease-in-out infinite;
+}
+.sky-loader-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--bone);
+  opacity: 0.15;
+  animation: sky-twinkle 2.4s ease-in-out infinite;
+}
+.sky-loader-caption {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--text-lg);
+  color: var(--fog);
+  margin-top: 0.5rem;
+}
+@keyframes sky-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes sky-moon-glow {
+  0%,
+  100% {
+    filter: brightness(1);
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    filter: brightness(1.25) drop-shadow(0 0 0.75rem var(--dawn-soft));
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sky-loader-moon,
+  .sky-loader-star {
+    animation: none;
+  }
+  .sky-loader-star {
+    opacity: 0.6;
+  }
+}
 
 /* ——— sky reading: panel ——— */
 @keyframes sky-fade-in {
