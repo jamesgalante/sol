@@ -33,6 +33,10 @@ operational stuff that doesn't belong there.
 - Schema changes ship as a numbered file in `supabase/migrations/` inside
   the same PR, and James pastes them into the dashboard SQL editor at merge
   time — a PR whose code needs an unrun migration will error in production.
+- A shared **preview test account** exists for signing into Vercel preview
+  URLs without the email-code dance (sign-in card → "have a password?").
+  Its email + password live in `.env.secrets`, never in the repo or PR
+  comments — this repo is public.
 
 ## Conventions
 

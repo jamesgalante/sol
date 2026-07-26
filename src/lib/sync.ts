@@ -187,12 +187,9 @@ export async function following(): Promise<Profile[]> {
   if (!uid) return []
   const { data } = await supabase
     .from('follows')
-    .select('followee, profiles!follows_followee_fkey(id, username)')
+    .select(`followee, profiles!follows_followee_fkey(${PROFILE_COLS})`)
     .eq('follower', uid)
-  return (data ?? [])
-    .map((r: any) => r.profiles)
-    .filter(Boolean)
-    .map((p: any) => ({ id: p.id, username: p.username }))
+  return (data ?? []).map((r: any) => r.profiles).filter(Boolean)
 }
 
 export async function feed(): Promise<FeedDream[]> {

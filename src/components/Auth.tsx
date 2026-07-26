@@ -4,12 +4,30 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { claimUsername } from '../lib/sync'
 
+// Password sign-in exists only for the shared preview test account.
+// Production users never see it — codes are the whole story there.
+const SHOW_PASSWORD_OPTION = window.location.hostname !== 'sol-tan-three.vercel.app'
+
 export function SignIn() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [usePassword, setUsePassword] = useState(false)
+  const [password, setPassword] = useState('')
+
+  async function signInWithPassword() {
+    if (!supabase || !email.includes('@') || !password) return
+    setBusy(true)
+    setError('')
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+    setBusy(false)
+    if (error) setError(error.message)
+  }
 
   async function send() {
     if (!supabase || !email.includes('@')) return
@@ -48,13 +66,46 @@ export function SignIn() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
+              onKeyDown={(e) => e.key === 'Enter' && (usePassword ? undefined : send())}
             />
-            <button className="auth-btn" onClick={send} disabled={busy || !email.includes('@')}>
-              {busy ? '…' : 'send code'}
-            </button>
+            {!usePassword && (
+              <button className="auth-btn" onClick={send} disabled={busy || !email.includes('@')}>
+                {busy ? '…' : 'send code'}
+              </button>
+            )}
           </div>
-          <div className="auth-sub">No password — we email you a code and a link.</div>
+          {usePassword && (
+            <div className="auth-row" style={{ marginTop: '0.625rem' }}>
+              <input
+                className="auth-input"
+                type="password"
+                autoComplete="current-password"
+                placeholder="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && signInWithPassword()}
+              />
+              <button
+                className="auth-btn"
+                onClick={signInWithPassword}
+                disabled={busy || !email.includes('@') || !password}
+              >
+                {busy ? '…' : 'sign in'}
+              </button>
+            </div>
+          )}
+          <div className="auth-sub">
+            {usePassword ? (
+              <>Test account only — </>
+            ) : (
+              <>No password — we email you a code and a link. </>
+            )}
+            {SHOW_PASSWORD_OPTION && (
+              <button className="auth-toggle" onClick={() => setUsePassword(!usePassword)}>
+                {usePassword ? 'use an email code' : 'test account'}
+              </button>
+            )}
+          </div>
         </>
       ) : (
         <>

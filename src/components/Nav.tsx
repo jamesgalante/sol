@@ -31,7 +31,9 @@ export function Nav({ view, onNavigate }: { view: View; onNavigate: (v: View) =>
   }, [view.name]) // re-check after auth/claim happens on other screens
 
   const current = view.name === 'dream' ? 'journal' : view.name
-  const onOwnProfile = view.name === 'profile' && me !== null && view.username === me.username
+  const onOwnProfile =
+    view.name === 'me' ||
+    (view.name === 'profile' && me !== null && view.username === me.username)
 
   const item = (entry: { name: View['name']; label: string }) => (
     <button
@@ -51,10 +53,8 @@ export function Nav({ view, onNavigate }: { view: View; onNavigate: (v: View) =>
         <button
           className="nav-me"
           aria-current={onOwnProfile}
-          aria-label={me ? 'Your profile' : 'Sign in'}
-          onClick={() =>
-            me ? onNavigate({ name: 'profile', username: me.username }) : onNavigate({ name: 'circle' })
-          }
+          aria-label="Your cloud"
+          onClick={() => onNavigate({ name: 'me' })}
         >
           <span className="nav-me-disc" data-on={onOwnProfile}>
             <CloudAvatar
