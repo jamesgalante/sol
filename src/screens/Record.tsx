@@ -1,19 +1,34 @@
 import { useEffect, useRef, useState } from 'react'
 import { startRecording, speechSupported, micDenied, type RecordingController } from '../lib/recorder'
+import { transcribeAudio } from '../lib/transcribe'
 import { categorize, detectMood, titleFrom } from '../lib/categorize'
 import { saveDream, listDreams } from '../lib/db'
 import { pushDream, restoreMyDreams } from '../lib/sync'
 import { formatDuration, nightKey, lastNightKey } from '../lib/time'
 import type { Dream } from '../lib/types'
 
+// idle → recording → (transcribing) → review → save. The dream is only written
+// to IndexedDB once the user approves the text in review, so they always get to
+// read and edit before it's kept.
+type Phase = 'idle' | 'recording' | 'transcribing' | 'review'
+
 export function Record({ onSaved }: { onSaved: (id: string) => void }) {
-  const [recording, setRecording] = useState(false)
+  const [phase, setPhase] = useState<Phase>('idle')
   const [saving, setSaving] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [live, setLive] = useState({ final: '', interim: '' })
+  const [draft, setDraft] = useState('')
+  // Why the review box is empty, when it is — so a blank box is never a mystery.
+  // `error` styles it as a failure (transcription broke) vs. a plain note (no mic).
+  const [reviewNote, setReviewNote] = useState<{ text: string; error: boolean }>({
+    text: '',
+    error: false,
+  })
   const [stats, setStats] = useState<{ total: number; lastNight: number } | null>(null)
   const [blocked, setBlocked] = useState(false)
   const controller = useRef<RecordingController | null>(null)
+  const audioRef = useRef<Blob | null>(null)
+  const durationRef = useRef(0)
 
   useEffect(() => {
     micDenied().then(setBlocked)
@@ -25,44 +40,92 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
   }, [])
 
   useEffect(() => {
-    if (!recording) return
+    if (phase !== 'recording') return
     const started = Date.now()
     const t = setInterval(() => setElapsed((Date.now() - started) / 1000), 250)
     return () => clearInterval(t)
-  }, [recording])
+  }, [phase])
 
-  async function toggle() {
-    if (saving) return
-    if (!recording) {
-      setLive({ final: '', interim: '' })
-      setElapsed(0)
-      const c = startRecording()
-      c.onTranscript((final, interim) => setLive({ final, interim }))
-      controller.current = c
-      setRecording(true)
-    } else {
-      setSaving(true)
-      const result = await controller.current!.stop()
-      controller.current = null
-      setRecording(false)
-      const dream: Dream = {
-        id: crypto.randomUUID(),
-        createdAt: Date.now() - result.durationSec * 1000,
-        durationSec: result.durationSec,
-        transcript: result.transcript,
-        title: titleFrom(result.transcript),
-        tags: categorize(result.transcript),
-        mood: detectMood(result.transcript),
-        hasAudio: result.audio !== null,
-      }
-      await saveDream(dream, result.audio ?? undefined)
-      pushDream(dream) // fire-and-forget cloud mirror (private by default)
-      setSaving(false)
-      onSaved(dream.id)
-    }
+  function start() {
+    setLive({ final: '', interim: '' })
+    setElapsed(0)
+    const c = startRecording()
+    c.onTranscript((final, interim) => setLive({ final, interim }))
+    controller.current = c
+    setPhase('recording')
   }
 
-  const liveText = (live.final + ' ' + live.interim).trim()
+  // Stop capture, then decide how we get the transcript: the browser's live
+  // Web Speech text if it caught anything, else a server transcription of the
+  // recorded audio, else an empty draft the user types into.
+  async function done() {
+    const c = controller.current
+    if (!c) return
+    controller.current = null
+    const result = await c.stop()
+    audioRef.current = result.audio
+    durationRef.current = result.durationSec
+
+    if (result.transcript) {
+      setDraft(result.transcript)
+      setReviewNote({ text: '', error: false })
+      setPhase('review')
+      return
+    }
+    if (result.audio) {
+      // We caught the audio but live speech gave us nothing — try the server.
+      setPhase('transcribing')
+      try {
+        setDraft(await transcribeAudio(result.audio))
+        setReviewNote({ text: '', error: false })
+      } catch {
+        // The recording exists but transcription failed (no API key, not enabled,
+        // offline, or a server error). Tell the user plainly and let them type.
+        setDraft('')
+        setReviewNote({
+          text: 'Something went wrong transcribing your recording — try typing it out instead.',
+          error: true,
+        })
+      }
+      setPhase('review')
+      return
+    }
+    // No audio at all (no mic) — nothing to transcribe; this is the type-it path.
+    setDraft('')
+    setReviewNote({ text: 'No mic caught this one — type what you remember.', error: false })
+    setPhase('review')
+  }
+
+  async function keep() {
+    if (saving) return
+    setSaving(true)
+    const transcript = draft.trim()
+    const audio = audioRef.current
+    const durationSec = durationRef.current
+    const dream: Dream = {
+      id: crypto.randomUUID(),
+      createdAt: Date.now() - durationSec * 1000,
+      durationSec,
+      transcript,
+      title: titleFrom(transcript),
+      tags: categorize(transcript),
+      mood: detectMood(transcript),
+      hasAudio: audio !== null,
+    }
+    await saveDream(dream, audio ?? undefined)
+    pushDream(dream) // fire-and-forget cloud mirror (private by default)
+    onSaved(dream.id)
+  }
+
+  function discard() {
+    if (saving) return
+    audioRef.current = null
+    durationRef.current = 0
+    setDraft('')
+    setReviewNote({ text: '', error: false })
+    setLive({ final: '', interim: '' })
+    setPhase('idle')
+  }
 
   async function typeInstead() {
     const dream: Dream = {
@@ -79,22 +142,40 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
     onSaved(dream.id) // detail opens straight into typing for empty dreams
   }
 
+  const recording = phase === 'recording'
+  const liveText = (live.final + ' ' + live.interim).trim()
+
+  const eyebrow =
+    phase === 'recording' ? 'LISTENING' : phase === 'transcribing' ? 'CATCHING IT' : phase === 'review' ? 'YOUR DREAM' : 'BEFORE IT FADES'
+  const prompt =
+    phase === 'recording'
+      ? 'Keep going…'
+      : phase === 'transcribing'
+        ? 'One moment…'
+        : phase === 'review'
+          ? reviewNote.text
+            ? 'What do you remember?'
+            : 'Does this sound right?'
+          : 'What did you dream?'
+
   return (
     <div className="record">
-      <div className="record-eyebrow">{recording ? 'LISTENING' : 'BEFORE IT FADES'}</div>
-      <h1 className="record-prompt">{recording ? 'Keep going…' : 'What did you dream?'}</h1>
+      <div className="record-eyebrow">{eyebrow}</div>
+      <h1 className="record-prompt">{prompt}</h1>
 
-      <div className="sun-field" data-recording={recording}>
-        <div className="sun-horizon" />
-        <button
-          className="sun-btn"
-          onClick={toggle}
-          aria-label={recording ? 'Stop recording' : 'Start recording'}
-        />
-        {!recording && <div className="sun-mask" />}
-      </div>
+      {(phase === 'idle' || phase === 'recording') && (
+        <div className="sun-field" data-recording={recording}>
+          <div className="sun-horizon" />
+          <button
+            className="sun-btn"
+            onClick={recording ? done : start}
+            aria-label={recording ? 'Stop recording' : 'Start recording'}
+          />
+          {!recording && <div className="sun-mask" />}
+        </div>
+      )}
 
-      {recording ? (
+      {phase === 'recording' && (
         <>
           <div className="record-timer">{formatDuration(elapsed)}</div>
           <div className="record-live">
@@ -102,31 +183,61 @@ export function Record({ onSaved }: { onSaved: (id: string) => void }) {
             {live.interim && <span className="interim"> {live.interim}</span>}
             {!liveText && <span className="interim">…</span>}
           </div>
+          <button className="record-done" onClick={done}>
+            done
+          </button>
         </>
-      ) : (
-        <div className="record-hint">
-          {saving
-            ? 'Keeping it…'
-            : blocked
+      )}
+
+      {phase === 'transcribing' && <div className="record-hint">making out the words…</div>}
+
+      {phase === 'review' && (
+        <div className="record-review">
+          {reviewNote.text && (
+            <div className={`record-review-note${reviewNote.error ? ' record-review-note--error' : ''}`}>
+              {reviewNote.text}
+            </div>
+          )}
+          <textarea
+            className="transcript-edit"
+            value={draft}
+            autoFocus
+            placeholder="Type what you remember…"
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <div className="record-review-actions">
+            <button className="quiet-btn" onClick={keep} disabled={saving}>
+              {saving ? 'keeping…' : 'keep'}
+            </button>
+            <button className="quiet-btn" onClick={discard} disabled={saving}>
+              discard
+            </button>
+          </div>
+        </div>
+      )}
+
+      {phase === 'idle' && (
+        <>
+          <div className="record-hint">
+            {blocked
               ? 'No mic in this browser — tap the sun, type it after'
               : speechSupported()
                 ? 'Tap the sun and speak'
                 : 'Tap the sun to record — you can type the words after'}
-        </div>
-      )}
+          </div>
 
-      {!recording && !saving && (
-        <button className="quiet-btn write-instead" onClick={typeInstead}>
-          or write it instead
-        </button>
-      )}
+          <button className="quiet-btn write-instead" onClick={typeInstead}>
+            or write it instead
+          </button>
 
-      {!recording && stats && stats.total > 0 && (
-        <div className="record-stats">
-          {stats.lastNight > 0
-            ? `${stats.lastNight} dream${stats.lastNight === 1 ? '' : 's'} last night · ${stats.total} kept`
-            : `${stats.total} dream${stats.total === 1 ? '' : 's'} kept`}
-        </div>
+          {stats && stats.total > 0 && (
+            <div className="record-stats">
+              {stats.lastNight > 0
+                ? `${stats.lastNight} dream${stats.lastNight === 1 ? '' : 's'} last night · ${stats.total} kept`
+                : `${stats.total} dream${stats.total === 1 ? '' : 's'} kept`}
+            </div>
+          )}
+        </>
       )}
     </div>
   )

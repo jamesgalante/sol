@@ -237,6 +237,56 @@ textarea {
   color: var(--fog-dim);
 }
 
+/* the explicit "done" stop control — a hairline pill so the sun stays the
+   one bold element while it's clear how to finish */
+.record-done {
+  margin-top: 2rem;
+  padding: 0.55rem 1.75rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fog);
+  transition:
+    color 0.25s var(--ease),
+    border-color 0.25s var(--ease);
+}
+.record-done:hover {
+  color: var(--bone);
+  border-color: var(--dawn-deep);
+}
+
+/* review: read and edit the transcript before it's kept */
+.record-review {
+  width: 100%;
+  max-width: var(--col);
+  margin-top: 1.5rem;
+  text-align: left;
+}
+.record-review .transcript-edit {
+  min-height: 8rem;
+  font-size: var(--text-base);
+}
+.record-review-note {
+  font-size: var(--text-sm);
+  color: var(--fog-dim);
+  margin-bottom: 0.75rem;
+}
+.record-review-note--error {
+  color: var(--danger);
+}
+.record-review-actions {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+.quiet-btn:disabled {
+  color: var(--fog-dim);
+  cursor: default;
+}
+
 /* ——— the sun ——— */
 .sun-field {
   position: relative;
