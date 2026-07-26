@@ -243,8 +243,8 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
       {mine &&
         birthChart !== undefined &&
         (editingChart ? (
-          <div className="auth-card chart-card">
-            <div className="auth-title">Your birth chart</div>
+          <section className="stat-section chart-section">
+            <div className="stat-heading">Your birth chart</div>
             <BirthChartForm
               initial={birthChart ?? null}
               onSaved={(c) => {
@@ -255,7 +255,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
             <button className="quiet-btn chart-cancel" onClick={() => setEditingChart(false)}>
               cancel
             </button>
-          </div>
+          </section>
         ) : !birthChart || birthChart.skipped || !birthChart.birthDate ? (
           // nothing filled yet: one quiet line, not a box
           <button className="chart-prompt" onClick={() => setEditingChart(true)}>
@@ -293,7 +293,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
               </button>
             </div>
             {natal && showFullChart && (
-              <div className="auth-card chart-card">
+              <div className="chart-open">
                 <NatalWheel chart={natal} />
                 {!natal.hasHouses && (
                   <p className="natal-caveat">
