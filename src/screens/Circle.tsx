@@ -22,7 +22,8 @@ import type { Mood, View } from '../lib/types'
 
 export function Circle({ onNavigate }: { onNavigate: (v: View) => void }) {
   const [session, setSession] = useState<boolean | null>(cloudEnabled() ? null : false)
-  const [profile, setProfile] = useState<Profile | null>(null)
+  // undefined = still asking the server; null = confirmed no profile yet
+  const [profile, setProfile] = useState<Profile | null | undefined>(undefined)
   const [checked, setChecked] = useState(false)
 
   useEffect(() => {
@@ -41,8 +42,10 @@ export function Circle({ onNavigate }: { onNavigate: (v: View) => void }) {
   }, [])
 
   useEffect(() => {
-    if (session) myProfile().then(setProfile)
-    else setProfile(null)
+    if (session) {
+      setProfile(undefined)
+      myProfile().then(setProfile)
+    } else setProfile(null)
   }, [session])
 
   // first sign-in with a profile: mirror local dreams to the cloud
@@ -51,6 +54,8 @@ export function Circle({ onNavigate }: { onNavigate: (v: View) => void }) {
   }, [session, profile?.id])
 
   if (!checked) return null
+  // profile still loading — never flash the wrong gate
+  if (session && profile === undefined) return null
 
   if (!cloudEnabled()) {
     return (

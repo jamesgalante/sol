@@ -1095,6 +1095,13 @@ textarea {
   letter-spacing: 0.12em;
   color: var(--fog-dim);
 }
+.profile-counts {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--fog-dim);
+  margin-top: 0.375rem;
+}
 .profile-you {
   color: var(--dawn-deep);
   margin-left: 0.375rem;
