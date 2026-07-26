@@ -39,6 +39,15 @@ import { NatalWheel, NatalLegend, NatalSummary } from '../components/NatalWheel'
 import { computeNatalChart } from '../lib/astrology'
 import type { BirthChart, View } from '../lib/types'
 
+/** "1998-02-03" → "Feb 3, 1998" — for the one-line chart summary. */
+function formatBirthDate(iso: string | null): string {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-').map(Number)
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  if (!y || !m || !d) return iso
+  return `${MONTHS[m - 1]} ${d}, ${y}`
+}
+
 export function Profile({ username, onNavigate }: { username: string; onNavigate: (v: View) => void }) {
   const [state, setState] = useState<'loading' | 'signed-out' | 'missing' | 'ready'>('loading')
   const [person, setPerson] = useState<ProfileRow | null>(null)
@@ -231,10 +240,11 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
         person.bio && <p className="profile-bio">{person.bio}</p>
       )}
 
-      {mine && birthChart !== undefined && (
-        <div className="auth-card">
-          <div className="auth-title">Your birth chart</div>
-          {editingChart || !birthChart || birthChart.skipped ? (
+      {mine &&
+        birthChart !== undefined &&
+        (editingChart ? (
+          <div className="auth-card chart-card">
+            <div className="auth-title">Your birth chart</div>
             <BirthChartForm
               initial={birthChart ?? null}
               onSaved={(c) => {
@@ -242,49 +252,60 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
                 setEditingChart(false)
               }}
             />
-          ) : (
-            <>
-              {natal && <NatalSummary chart={natal} />}
-              {natal && (
-                <button className="quiet-btn" onClick={() => setShowFullChart((v) => !v)}>
-                  {showFullChart ? 'Hide full chart' : 'See full natal chart'}
-                </button>
-              )}
-              {natal && showFullChart && (
-                <>
-                  <NatalWheel chart={natal} />
-                  {!natal.hasHouses && (
-                    <p className="natal-caveat">
-                      Add an exact birth time and pick your birth place to unlock your Rising sign
-                      and houses. Planet signs shown are computed at local noon.
-                    </p>
-                  )}
-                  <NatalLegend chart={natal} />
-                </>
-              )}
-              <div className="auth-row">
-                <div className="auth-sub" style={{ margin: 0 }}>
-                  {birthChart.birthDate}
-                  {birthChart.timeUnknown
-                    ? ' · time unknown'
-                    : birthChart.birthTime && ` · ${birthChart.birthTime}`}
-                  {(birthChart.placeLabel || birthChart.birthPlace) &&
-                    ` · ${birthChart.placeLabel || birthChart.birthPlace}`}
-                </div>
-                <button
-                  className="quiet-btn"
-                  onClick={() => {
-                    setShowFullChart(false)
-                    setEditingChart(true)
-                  }}
-                >
-                  edit
-                </button>
+            <button className="quiet-btn chart-cancel" onClick={() => setEditingChart(false)}>
+              cancel
+            </button>
+          </div>
+        ) : !birthChart || birthChart.skipped || !birthChart.birthDate ? (
+          // nothing filled yet: one quiet line, not a box
+          <button className="chart-prompt" onClick={() => setEditingChart(true)}>
+            <span className="chart-prompt-glyph" aria-hidden>
+              ✶
+            </span>
+            fill in your birth chart
+            <span className="goto-arrow">→</span>
+          </button>
+        ) : (
+          <div className="chart-block">
+            {natal && <NatalSummary chart={natal} />}
+            <div className="chart-line">
+              <span className="chart-line-meta">
+                {formatBirthDate(birthChart.birthDate)}
+                {birthChart.timeUnknown
+                  ? ''
+                  : birthChart.birthTime
+                    ? ` · ${birthChart.birthTime}`
+                    : ''}
+                {(birthChart.placeLabel || birthChart.birthPlace) &&
+                  ` · ${birthChart.placeLabel || birthChart.birthPlace}`}
+              </span>
+              <button className="quiet-btn" onClick={() => setShowFullChart((v) => !v)}>
+                {showFullChart ? 'hide chart' : 'full chart'}
+              </button>
+              <button
+                className="quiet-btn"
+                onClick={() => {
+                  setShowFullChart(false)
+                  setEditingChart(true)
+                }}
+              >
+                edit
+              </button>
+            </div>
+            {natal && showFullChart && (
+              <div className="auth-card chart-card">
+                <NatalWheel chart={natal} />
+                {!natal.hasHouses && (
+                  <p className="natal-caveat">
+                    Add an exact birth time and pick your birth place to unlock your Rising sign
+                    and houses. Planet signs shown are computed at local noon.
+                  </p>
+                )}
+                <NatalLegend chart={natal} />
               </div>
-            </>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        ))}
 
       {mine && (
         <div className="color-picker">

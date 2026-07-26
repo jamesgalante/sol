@@ -1145,6 +1145,60 @@ textarea {
   letter-spacing: 0.12em;
   color: var(--fog-dim);
 }
+.chart-prompt {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  color: var(--fog);
+  padding: 0.625rem 0;
+  margin: 0.25rem 0 1rem;
+  border-bottom: 1px solid var(--line);
+  transition: color 0.25s var(--ease);
+}
+.chart-prompt:hover {
+  color: var(--bone);
+}
+.chart-prompt-glyph {
+  color: var(--dawn);
+}
+.chart-prompt .goto-arrow {
+  margin-left: auto;
+  font-size: 0.875rem;
+}
+.chart-block {
+  margin: 0.25rem 0 1.5rem;
+}
+.chart-line {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.625rem;
+}
+.chart-line-meta {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--fog-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chart-card {
+  margin-bottom: 1.5rem;
+}
+.chart-block .chart-card {
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+}
+.chart-cancel {
+  margin-top: 0.75rem;
+}
 .profile-counts {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
