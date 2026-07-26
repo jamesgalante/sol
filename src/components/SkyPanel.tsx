@@ -9,7 +9,7 @@ import { transitSky, skyReading } from '../lib/skyReading'
 import { fetchRemoteNarrative } from '../lib/skyReadingRemote'
 import { getCachedReading, saveCachedReading } from '../lib/db'
 import type { CachedReading } from '../lib/db'
-import { llmEnabled, supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { NatalSummary } from './NatalWheel'
 import { BirthChartForm } from './BirthChartForm'
 
@@ -45,8 +45,11 @@ export function SkyPanel({
       if (cancelled) return
       if (cached) return setReading(cached)
 
+      // Any signed-in user attempts the remote path; the server decides. Allowlisted
+      // emails are unlimited, everyone else gets one complimentary reading — an
+      // exhausted user gets a 402 (no Anthropic spend) and falls through to local.
       const email = (await supabase?.auth.getSession())?.data.session?.user.email
-      if (llmEnabled(email)) {
+      if (email) {
         try {
           const remote = await fetchRemoteNarrative(dream, natal, transit)
           if (cancelled) return
