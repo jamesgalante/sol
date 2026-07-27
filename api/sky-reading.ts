@@ -11,15 +11,17 @@ const MODEL = 'claude-haiku-4-5'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-// A Supabase client used only to verify the caller's JWT. The anon key is
-// enough — we read identity, we don't write to Postgres. Prefer bare names but
-// fall back to the VITE_-prefixed vars, which are the only Supabase values set
-// in Vercel; without this fallback createClient() throws at module load and the
-// whole function 500s before the handler ever runs.
-const supabase = createClient(
-  (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL) as string,
-  (process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY) as string,
-)
+// Prefer bare names but fall back to the VITE_-prefixed vars, which are the only
+// Supabase values set in Vercel; without this fallback createClient() throws at
+// module load and the whole function 500s before the handler ever runs.
+const SUPABASE_URL = (process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL) as string
+const SUPABASE_ANON_KEY = (process.env.SUPABASE_ANON_KEY ??
+  process.env.VITE_SUPABASE_ANON_KEY) as string
+
+// A Supabase client used only to verify the caller's JWT. The anon key is enough
+// for that. To spend a free credit we build a per-request client authenticated as
+// the caller (see handler) so the security-definer RPCs see the right auth.uid().
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 const allowed = (process.env.LLM_ALLOWED_EMAILS ?? '')
   .split(',')
@@ -44,6 +46,8 @@ interface RequestBody {
 const SCHEMA = {
   type: 'object',
   properties: {
+    // ≥2: the title plus at least one body item — a model that returns the title
+    // alone would leave the main reading visibly empty.
     narrative: { type: 'array', items: { type: 'string' }, minItems: 2 },
     expandedNarrative: { type: 'array', items: { type: 'string' }, minItems: 2 },
   },
@@ -72,8 +76,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const email = data.user?.email?.toLowerCase()
   if (error || !email) return res.status(401).json({ error: 'invalid token' })
 
-  // 2 — allowlist gate (this is what protects spend)
-  if (!allowed.includes(email)) return res.status(403).json({ error: 'not enabled' })
+  // 2 — spend gate. Allowlisted emails are unlimited. Everyone else gets one
+  // complimentary reading: atomically claim a free credit (as the caller, so the
+  // security-definer RPC keys off their auth.uid()) before we spend on Anthropic.
+  // Out of credits → 402, and the client silently falls back to the local reading.
+  // `authed` is held so we can refund the credit if synthesis fails (step 3).
+  let authed: ReturnType<typeof createClient> | null = null
+  if (!allowed.includes(email)) {
+    authed = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    })
+    const { data: granted, error: claimErr } = await authed.rpc('claim_free_analysis')
+    if (claimErr || !granted) return res.status(402).json({ error: 'quota exhausted' })
+  }
 
   // 3 — build the prompt and call Anthropic
   const b = req.body as RequestBody
@@ -105,6 +120,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .json({ narrative: parsed.narrative, expandedNarrative: parsed.expandedNarrative })
   } catch (e) {
     console.error('sky-reading error', e)
+    // Don't burn the user's one free reading on a synthesis failure — give it back.
+    if (authed) await authed.rpc('refund_free_analysis')
     return res.status(502).json({ error: 'synthesis failed' })
   }
 }

@@ -187,8 +187,8 @@ keeps the feature honest (a real reading of a real chart) rather than generic fi
 
 **Persistence (durable, like the transcript):** a generated reading is written to the local
 IndexedDB `readings` cache **and** mirrored to Supabase (`public.sky_readings`, migration
-`009`, keyed by dream id, own-row RLS, `on delete cascade` from `dreams`). On view the
-narrative resolves local cache → cloud (`readingForDream`) → allowlisted LLM
+`010`, keyed by dream id, own-row RLS, `on delete cascade` from `dreams`). On view the
+narrative resolves local cache → cloud (`readingForDream`) → remote synthesis
 (`fetchRemoteNarrative`, then `pushReading`) → deterministic local `skyReading()`. So a
 reading survives across devices and browser eviction without a repeat paid LLM call, and a
 transcript edit drops both copies (`clearCachedReading` + `deleteCloudReading`).

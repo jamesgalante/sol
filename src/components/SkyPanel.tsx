@@ -11,7 +11,7 @@ import { fetchRemoteNarrative } from '../lib/skyReadingRemote'
 import { getCachedReading, saveCachedReading } from '../lib/db'
 import type { CachedReading } from '../lib/db'
 import { readingForDream, pushReading } from '../lib/sync'
-import { llmEnabled, supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { NatalSummary } from './NatalWheel'
 import { BirthChartForm } from './BirthChartForm'
 
@@ -63,9 +63,12 @@ export function SkyPanel({
         /* offline / no row — fall through */
       }
 
-      // 3 — allowlisted LLM: generate, then persist to both local + cloud.
+      // 3 — remote synthesis: any signed-in user attempts it; the server decides.
+      // Allowlisted emails are unlimited, everyone else gets one complimentary
+      // reading — an exhausted user gets a 402 (no Anthropic spend) and falls
+      // through to local. On success, persist to both local + cloud.
       const email = (await supabase?.auth.getSession())?.data.session?.user.email
-      if (llmEnabled(email)) {
+      if (email) {
         try {
           const remote = await fetchRemoteNarrative(dream, natal, transit)
           if (cancelled) return
