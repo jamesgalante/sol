@@ -5,6 +5,7 @@ import { supabase } from './supabase'
 import type { BirthChart, Dream, Mood } from './types'
 import type { CachedReading } from './db'
 import { dreamMood } from './categorize'
+import { notify } from './notify'
 
 export interface Profile {
   id: string
@@ -212,6 +213,7 @@ export async function follow(username: string): Promise<{ error?: string }> {
     .from('follows')
     .insert({ follower: uid, followee: target.id, status: 'pending' })
   if (error && error.code !== '23505') return { error: error.message }
+  if (!error) notify({ kind: 'follow_request', targetUserId: target.id })
   return {}
 }
 
@@ -256,6 +258,7 @@ export async function acceptRequest(followerId: string): Promise<void> {
     .update({ status: 'accepted' })
     .eq('follower', followerId)
     .eq('followee', uid)
+  notify({ kind: 'follow_accept', targetUserId: followerId })
 }
 
 export async function declineRequest(followerId: string): Promise<void> {
@@ -457,6 +460,7 @@ export async function addComment(
     .select('id, created_at')
     .single()
   if (error || !data) return { error: error?.message ?? 'could not comment' }
+  notify({ kind: 'comment', dreamId })
   return {
     comment: {
       id: data.id,
