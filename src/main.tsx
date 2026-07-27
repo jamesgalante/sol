@@ -2,6 +2,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import './styles/app.css'
+import { applyTextScale } from './lib/settings'
+
+applyTextScale()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
