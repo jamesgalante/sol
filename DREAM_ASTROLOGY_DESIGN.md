@@ -114,12 +114,13 @@ Sans for UI, Geist Mono for tags/eyebrows):**
    transit closely aspecting a natal point). This is the one piece of the reading that's
    about the *moment*, not the person — dreaming is Moon-ruled, so this goes first.
 
-3. **"The reading"** (the main analysis) — the LLM-generated narrative, 2–3 short
-   paragraphs that relate **only the big three (Sun, Moon, Rising)** to the dream, plus the
-   transit/mood/symbols. Open with one pull-quote-style line in the serif display font
-   (mirrors how `screen-title` is used elsewhere), then the explanation in body text. This
-   is the emotional core of the page — kept deliberately focused, because relating the
-   whole chart to a single dream at once reads as overload. (`SkyReading.narrative`.)
+3. **"The reading"** (the main analysis) — `SkyReading.narrative`, a two-item shape:
+   `narrative[0]` is a single-sentence pull-quote **title** in the serif display font
+   (mirrors how `screen-title` is used elsewhere); `narrative[1..]` is the body — **3–6
+   sentences** relating **only the big three (Sun, Moon, Rising)** to the dream, plus the
+   transit/mood/symbols. This is the emotional core of the page — kept deliberately focused
+   on the big three, because relating the whole chart to a single dream at once reads as
+   overload.
 
 4. **"Placements at play"** — the big-three tiles only (`NatalSummary`): Sun/Moon/Rising +
    the no-birth-time caveat when Rising/houses are unavailable. The wider chart's cards
@@ -128,8 +129,9 @@ Sans for UI, Geist Mono for tags/eyebrows):**
 5. **"Read the whole chart" expansion** (the hidden drop-down) — collapsed by default; a
    quiet mono toggle (`aria-expanded`, rotating `▾` caret, styled after the `.friend-add`
    pattern). When opened it reveals everything whole-chart:
-   - a second narrative (`SkyReading.expandedNarrative`, 2–3 paragraphs) reading the **rest
-     of the chart** — the other planets and Midheaven — against the dream;
+   - a second narrative (`SkyReading.expandedNarrative`) reading the **rest of the chart** —
+     **one entry of 1–2 sentences per remaining planet/point** (the other planets and
+     Midheaven), against the dream;
    - the extra-planet **cards** (glyph + sign + plain-language line, one per non–big-three
      placement the reading leans on, e.g. Neptune for water/fog, Pluto for death/rebirth);
    - the **symbol key** — the dream's existing tags (from `categorize.ts`'s `LEXICON`)
@@ -144,8 +146,8 @@ Sans for UI, Geist Mono for tags/eyebrows):**
   for birth-chart entry in `src/screens/Me.tsx`/`src/screens/Profile.tsx` (§1), prompting
   birth data entry with a one-line explanation of why it's needed.
 - **Chart set up, reading not yet generated** → the `SkyLoader` (breathing moon + twinkling
-  stars, cycling captions) while cache → LLM → local resolves — no spinner, matches the
-  app's calm pacing.
+  stars, cycling captions) while local cache → cloud → LLM → local resolves — no spinner,
+  matches the app's calm pacing.
 - **Reading generation fails** (LLM/network) → the local, deterministic `skyReading()`
   fills **both** tiers (main + expansion) from data the app computed independently, so the
   page never blocks on the network. Sections 1, 2, and 4 are computable regardless.
@@ -164,22 +166,33 @@ splits them into two labeled sets so the model knows which feeds which tier:
 - Transiting positions at `dream.createdAt`, especially Moon sign/phase.
 
 **Output:** structured JSON, not free text —
-`{ narrative: string[], expandedNarrative: string[] }` from the endpoint, widened to the
-full `SkyReading` (`{ narrative, expandedNarrative, placements, symbolKeys }`) on the
-client, where `placements`/`symbolKeys` stay deterministic. Two tiers:
-- `narrative` — the **main reading**, drawing only on the big three + transit/mood/symbols;
-  `narrative[0]` is the serif pull-quote.
-- `expandedNarrative` — the **hidden expansion**, reading the wider chart against the dream
-  (see §2.5). No pull-quote.
+`{ narrative: string[], expandedNarrative: string[] }` from the endpoint (schema
+`minItems: 2` on each), widened to the full `SkyReading`
+(`{ narrative, expandedNarrative, placements, symbolKeys }`) on the client, where
+`placements`/`symbolKeys` stay deterministic. Two tiers:
+- `narrative` — the **main reading**. `narrative[0]` is the serif pull-quote title;
+  `narrative[1..]` is the 3–6 sentence body, big three only. It must carry the title **plus**
+  the body (the client rejects a title-only response to the local fallback) — otherwise the
+  main reading renders as just the title with no analysis.
+- `expandedNarrative` — the **hidden expansion**: one 1–2 sentence entry per remaining
+  planet/point, in the order the client sends them (see §2.5). No pull-quote.
 
-The UI renders both deterministically instead of parsing prose. Only the two narrative
-tiers are cached per dream (`readings` store in `db.ts`); placements/symbolKeys recompute
-on view. On any endpoint failure the local `skyReading()` fills both tiers.
+**Voice:** gently oracular — a soft horoscope / tarot register, weighted a touch more to
+omen and image than to clinical personality analysis — while staying grounded in the
+supplied placements.
 
-**Prompting constraint to carry into implementation:** the model must only reference
-placements and symbols that are actually present in the input — no inventing planets or
-aspects not in the computed chart. This applies to **both** tiers, and keeps the feature
-honest (a real reading of a real chart) rather than generic astrology-flavored filler.
+**Prompting constraint:** the model must only reference placements and symbols actually
+present in the input — no inventing planets or aspects. This applies to **both** tiers, and
+keeps the feature honest (a real reading of a real chart) rather than generic filler.
+
+**Persistence (durable, like the transcript):** a generated reading is written to the local
+IndexedDB `readings` cache **and** mirrored to Supabase (`public.sky_readings`, migration
+`009`, keyed by dream id, own-row RLS, `on delete cascade` from `dreams`). On view the
+narrative resolves local cache → cloud (`readingForDream`) → allowlisted LLM
+(`fetchRemoteNarrative`, then `pushReading`) → deterministic local `skyReading()`. So a
+reading survives across devices and browser eviction without a repeat paid LLM call, and a
+transcript edit drops both copies (`clearCachedReading` + `deleteCloudReading`).
+`placements`/`symbolKeys` are never persisted — they recompute on view.
 
 ---
 

@@ -115,9 +115,15 @@ export function saveBirthChart(chart: BirthChart): Promise<void> {
 // once per dream. Invalidated on transcript edit (see DreamDetail).
 export async function getCachedReading(id: string): Promise<CachedReading | undefined> {
   const v = await tx(['readings'], 'readonly', (t) => t.objectStore('readings').get(id))
-  // Old entries were a bare string[] narrative (pre-expansion) — treat as stale
-  // so the two-tier reading regenerates rather than crashing on a missing tier.
-  if (!v || Array.isArray(v) || !Array.isArray((v as CachedReading).expandedNarrative)) {
+  // Treat as stale (→ regenerate) if: it's an old bare string[] narrative
+  // (pre-expansion), the expansion tier is missing, or the main reading is only
+  // the title (a 1-item narrative renders with no body).
+  if (
+    !v ||
+    Array.isArray(v) ||
+    !Array.isArray((v as CachedReading).expandedNarrative) ||
+    ((v as CachedReading).narrative?.length ?? 0) < 2
+  ) {
     return undefined
   }
   return v as CachedReading

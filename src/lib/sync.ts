@@ -3,6 +3,7 @@
 // the feed of dreams your followees chose to share.
 import { supabase } from './supabase'
 import type { BirthChart, Dream, Mood } from './types'
+import type { CachedReading } from './db'
 import { dreamMood } from './categorize'
 
 export interface Profile {
@@ -372,6 +373,46 @@ export async function pushBirthChart(c: BirthChart): Promise<void> {
   const uid = await currentUserId()
   if (!uid) return
   await supabase.from('birth_charts').upsert(toBirthChartRow(c, uid))
+}
+
+// ——— sky readings (the per-dream LLM interpretation) ———
+// Durable mirror of the local `readings` cache, keyed by the dream's id.
+
+/** The cloud copy of a dream's Sky Reading, or null (offline / signed out / none). */
+export async function readingForDream(id: string): Promise<CachedReading | null> {
+  if (!supabase) return null
+  const uid = await currentUserId()
+  if (!uid) return null
+  const { data } = await supabase
+    .from('sky_readings')
+    .select('narrative, expanded_narrative')
+    .eq('id', id)
+    .maybeSingle()
+  return data
+    ? { narrative: data.narrative ?? [], expandedNarrative: data.expanded_narrative ?? [] }
+    : null
+}
+
+/** Mirror a generated Sky Reading to the cloud (no-op offline / signed out). */
+export async function pushReading(id: string, reading: CachedReading): Promise<void> {
+  if (!supabase) return
+  const uid = await currentUserId()
+  if (!uid) return
+  await supabase.from('sky_readings').upsert({
+    id,
+    user_id: uid,
+    narrative: reading.narrative,
+    expanded_narrative: reading.expandedNarrative,
+    updated_at: new Date().toISOString(),
+  })
+}
+
+/** Drop a dream's cloud reading (on transcript edit; dream delete cascades). */
+export async function deleteCloudReading(id: string): Promise<void> {
+  if (!supabase) return
+  const uid = await currentUserId()
+  if (!uid) return
+  await supabase.from('sky_readings').delete().eq('id', id)
 }
 
 /* ——— comments ——— */
