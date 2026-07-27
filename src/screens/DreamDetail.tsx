@@ -9,7 +9,13 @@ import {
   clearCachedReading,
 } from '../lib/db'
 import { cloudEnabled } from '../lib/supabase'
-import { pushDream, deleteCloudDream, currentUserId, myBirthChart } from '../lib/sync'
+import {
+  pushDream,
+  deleteCloudDream,
+  deleteCloudReading,
+  currentUserId,
+  myBirthChart,
+} from '../lib/sync'
 import { categorize, detectMood, dreamMood, titleFrom } from '../lib/categorize'
 import { Cloud, MOOD_LABEL } from '../components/Cloud'
 import { SkyPanel } from '../components/SkyPanel'
@@ -86,9 +92,10 @@ export function DreamDetail({ id, onNavigate }: { id: string; onNavigate: (v: Vi
       mood: detectMood(transcript),
     }
     await saveDream(updated)
-    // Transcript (and derived tags/mood) changed — drop the cached reading so
-    // the Sky tab regenerates against the new text.
+    // Transcript (and derived tags/mood) changed — drop the cached reading, local
+    // and cloud, so the Sky tab regenerates against the new text.
     clearCachedReading(updated.id)
+    deleteCloudReading(updated.id)
     pushDream(updated)
     setDream(updated)
     setEditing(false)

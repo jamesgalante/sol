@@ -117,7 +117,7 @@ export async function getCachedReading(id: string): Promise<CachedReading | unde
   const v = await tx(['readings'], 'readonly', (t) => t.objectStore('readings').get(id))
   // Treat as stale (→ regenerate) if: it's an old bare string[] narrative
   // (pre-expansion), the expansion tier is missing, or the main reading is only
-  // the pull-quote (a malformed 1-item narrative renders with no body paragraphs).
+  // the title (a 1-item narrative renders with no body).
   if (
     !v ||
     Array.isArray(v) ||

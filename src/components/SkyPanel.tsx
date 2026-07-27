@@ -1,6 +1,7 @@
-// The per-dream Sky Reading panel — the "Sky" tab on DreamDetail. Everything
-// here is computed on view from the user's stored birth chart + the dream's
-// createdAt; nothing is persisted and nothing hits the network.
+// The per-dream Sky Reading panel — the "Sky" tab on DreamDetail. Placements are
+// computed on view from the user's stored birth chart; the narrative resolves
+// from the local cache → the durable cloud copy → the allowlisted LLM → a local
+// deterministic reading, so the panel always renders even offline.
 import { useEffect, useMemo, useState } from 'react'
 import type { BirthChart, Dream } from '../lib/types'
 import { ZODIAC } from '../lib/types'
@@ -9,6 +10,7 @@ import { transitSky, skyReading } from '../lib/skyReading'
 import { fetchRemoteNarrative } from '../lib/skyReadingRemote'
 import { getCachedReading, saveCachedReading } from '../lib/db'
 import type { CachedReading } from '../lib/db'
+import { readingForDream, pushReading } from '../lib/sync'
 import { supabase } from '../lib/supabase'
 import { NatalSummary } from './NatalWheel'
 import { BirthChartForm } from './BirthChartForm'
@@ -32,34 +34,54 @@ export function SkyPanel({
   )
 
   // The prose — both tiers (main + expansion). null → still resolving (show the
-  // loader). Resolves, in order, from the IndexedDB cache, the allowlisted LLM
-  // path, or the local reading. Any failure / not-allowlisted / offline falls
-  // back to local — the app never requires the network.
+  // loader). Resolves, in order, from the local IndexedDB cache, the durable
+  // cloud copy, the allowlisted LLM path, or the local reading. Any failure /
+  // not-allowlisted / offline falls back to local — the app never requires the
+  // network.
   const [reading, setReading] = useState<CachedReading | null>(null)
   useEffect(() => {
     if (!natal || !localReading) return
     let cancelled = false
     setReading(null) // show the loader while we resolve
     ;(async () => {
+      // 1 — local cache (offline-first, instant)
       const cached = await getCachedReading(dream.id)
       if (cancelled) return
       if (cached) return setReading(cached)
 
-      // Any signed-in user attempts the remote path; the server decides. Allowlisted
-      // emails are unlimited, everyone else gets one complimentary reading — an
-      // exhausted user gets a 402 (no Anthropic spend) and falls through to local.
+      // 2 — durable cloud copy: rehydrates a fresh device/browser without a
+      // paid LLM call. Mirror it back into the local cache on the way through.
+      try {
+        const cloud = await readingForDream(dream.id)
+        if (cancelled) return
+        if (cloud) {
+          await saveCachedReading(dream.id, cloud)
+          if (cancelled) return
+          return setReading(cloud)
+        }
+      } catch {
+        /* offline / no row — fall through */
+      }
+
+      // 3 — remote synthesis: any signed-in user attempts it; the server decides.
+      // Allowlisted emails are unlimited, everyone else gets one complimentary
+      // reading — an exhausted user gets a 402 (no Anthropic spend) and falls
+      // through to local. On success, persist to both local + cloud.
       const email = (await supabase?.auth.getSession())?.data.session?.user.email
       if (email) {
         try {
           const remote = await fetchRemoteNarrative(dream, natal, transit)
           if (cancelled) return
           await saveCachedReading(dream.id, remote)
+          void pushReading(dream.id, remote) // fire-and-forget cloud mirror
           if (cancelled) return
           return setReading(remote)
         } catch {
           /* fall through to the local reading */
         }
       }
+
+      // 4 — deterministic local reading (not persisted)
       if (!cancelled) {
         setReading({
           narrative: localReading.narrative,

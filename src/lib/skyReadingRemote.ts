@@ -51,8 +51,8 @@ export async function fetchRemoteNarrative(
   })
   if (!res.ok) throw new Error(`sky-reading ${res.status}`)
   const json = (await res.json()) as { narrative: string[]; expandedNarrative: string[] }
-  // Need at least the pull-quote + one body paragraph, else the main reading renders
-  // empty — reject so callers fall back to the fuller local reading.
+  // Need at least the title + one body item, else the main reading renders empty —
+  // reject so callers fall back to the fuller local reading.
   if (!Array.isArray(json.narrative) || json.narrative.length < 2) throw new Error('empty')
   if (!Array.isArray(json.expandedNarrative) || json.expandedNarrative.length === 0)
     throw new Error('empty expansion')

@@ -40,15 +40,15 @@ interface RequestBody {
   symbolLines: string[] // e.g. "flying → Uranus: breaking free, rising above the ordinary"
 }
 
-// Structured-output schema: the model must return exactly this. `narrative` is
-// the main (Sun/Moon/Rising) reading; `expandedNarrative` is the hidden
-// whole-chart expansion.
+// Structured-output schema. `narrative` is the main (Sun/Moon/Rising) reading —
+// item[0] is a one-line title, item[1..] the body. `expandedNarrative` is the
+// hidden whole-chart expansion, one entry per remaining placement.
 const SCHEMA = {
   type: 'object',
   properties: {
-    // ≥3: the pull-quote plus at least two body paragraphs — a model that returns
-    // the pull-quote alone would leave the main reading visibly empty.
-    narrative: { type: 'array', items: { type: 'string' }, minItems: 3 },
+    // ≥2: the title plus at least one body item — a model that returns the title
+    // alone would leave the main reading visibly empty.
+    narrative: { type: 'array', items: { type: 'string' }, minItems: 2 },
     expandedNarrative: { type: 'array', items: { type: 'string' }, minItems: 2 },
   },
   required: ['narrative', 'expandedNarrative'],
@@ -59,8 +59,8 @@ const SYSTEM = `You are the dream-reading voice of sól, a voice-first dream jou
 Write a two-part astrological reading of one dream, in second person ("you").
 Voice: quiet, warm, literary, a little nocturnal and oracular — read the night like a soft horoscope or a tarot pull, leaning to omen and image a touch more than to who the dreamer "is." Never clinical, no clichés, no emoji.
 Rules:
-- "narrative" is the MAIN reading. It MUST contain at least 3 items: item[0] is a single-sentence pull-quote (it renders in a serif display face); items[1..] are the body paragraphs (2–3 of them), drawing ONLY on the big three (Sun, Moon, Rising) plus the transit, mood, and symbols. Never return "narrative" as only the pull-quote.
-- "expandedNarrative" is a HIDDEN expansion the reader can open: 2–3 short paragraphs reading the REST of the chart (the other planets and Midheaven) against the dream. It may touch the big three for context, but its job is the wider chart. No pull-quote here.
+- "narrative" is the MAIN reading. It MUST have at least 2 items: item[0] is a single-sentence pull-quote title (it renders in a serif display face); item[1] (and optionally item[2]) is the body of the reading — 3 to 6 sentences total, drawing ONLY on the big three (Sun, Moon, Rising) plus the transit, mood, and symbols. Never return "narrative" as only the title.
+- "expandedNarrative" is a HIDDEN expansion the reader can open: return ONE entry for EACH item in the "rest of the chart" list, in that order — 1 to 2 sentences each, tying that planet/point to the dream. No pull-quote here.
 - Use ONLY the placements, transit, symbols, mood, and dream text provided. Never invent planets, signs, aspects, or houses that aren't given.
 - Tie the dream's imagery to the astrology you're given; you may gently speak to what the night seems to portend, but give no literal predictions or advice.`
 
@@ -98,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `The sky that night: ${b.transitLine}`,
     `The big three (use these for "narrative"):\n${b.coreLines.map((l) => `- ${l}`).join('\n')}`,
     b.chartLines.length
-      ? `The rest of the chart (use these for "expandedNarrative"):\n${b.chartLines.map((l) => `- ${l}`).join('\n')}`
+      ? `The rest of the chart — return ONE "expandedNarrative" entry per line below, in order:\n${b.chartLines.map((l) => `- ${l}`).join('\n')}`
       : `The rest of the chart couldn't be computed — keep "expandedNarrative" brief and honest about that.`,
     b.symbolLines.length
       ? `Symbols in this dream and what they answer to:\n${b.symbolLines.map((l) => `- ${l}`).join('\n')}`
@@ -108,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const message = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 1024,
+      max_tokens: 1536, // headroom: title + body + one expansion entry per planet
       system: SYSTEM,
       output_config: { format: { type: 'json_schema', schema: SCHEMA } },
       messages: [{ role: 'user', content: userContent }],
