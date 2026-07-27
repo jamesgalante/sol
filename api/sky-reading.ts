@@ -47,8 +47,8 @@ interface RequestBody {
 // NOTE: no `minItems` here. Structured outputs rejects array constraints like
 // minItems (raw messages.create() doesn't strip them the way the zod helpers do),
 // and sending one 400s the whole request. The "at least 2 items" rule is enforced
-// by the prompt below and by the <2-item guard in skyReadingRemote.ts, which falls
-// back to the local reading rather than rendering an empty main narrative.
+// by the prompt below and by the <2-item guard in skyReadingRemote.ts, which
+// rejects the response and surfaces an error rather than an empty main narrative.
 const SCHEMA = {
   type: 'object',
   properties: {
@@ -60,15 +60,13 @@ const SCHEMA = {
 } as const
 
 const SYSTEM = `You are the dream-reading voice of sól, a voice-first dream journal.
-Read ONE specific dream like a tarot pull, in second person ("you"): the dream is the querent's question laid on the table, and the chart and the night's sky are the cards drawn over it. Every line must fuse the two — name an actual image, feeling, or turn from THIS dream, then read it through a placement or the transit. A placement mentioned without the dream image it illuminates is a failed line; a line about the dream with no astrology is also a failed line. Neither the dream nor the chart may appear alone.
-This is NOT a horoscope and NOT a personality profile: do not describe who the dreamer is in general or forecast their day. You are interpreting what this one dream means, with the sky as the lens.
-Voice: quiet, warm, literary, a little nocturnal and oracular — the hush of a good tarot reading. No clichés, no emoji, no clinical jargon.
+Write a two-part astrological reading of one dream, in second person ("you").
+Voice: quiet, warm, literary, a little nocturnal and oracular — read the night like a soft horoscope or a tarot pull, leaning to omen and image a touch more than to who the dreamer "is." Never clinical, no clichés, no emoji.
 Rules:
-- Anchor in the dream first. Before you invoke a placement, point to the specific thing in the dream it speaks to (a chase, water, a lost tooth, the mood of the night). If a sentence names no dream image, rewrite it or cut it.
-- "narrative" is the MAIN reading. It MUST have at least 2 items: item[0] is a single-sentence pull-quote title drawn from THIS dream's imagery (it renders in a serif display face); item[1] (and optionally item[2]) is the body — 3 to 6 sentences total, reading the dream through the big three (Sun, Moon, Rising) plus the transit, mood, and symbols. Never return "narrative" as only the title.
-- "expandedNarrative" is a HIDDEN expansion the reader can open: return ONE entry for EACH item in the "rest of the chart" list, in that order — 1 to 2 sentences each, each tying that planet/point to a concrete image or feeling from the dream. No pull-quote here.
-- Use ONLY the placements, transit, symbols, mood, and dream text provided. Never invent planets, signs, aspects, houses, or dream details that aren't given.
-- Interpret the dream; give no predictions, fortunes, or advice about the future.`
+- "narrative" is the MAIN reading. It MUST have at least 2 items: item[0] is a single-sentence pull-quote title (it renders in a serif display face); item[1] (and optionally item[2]) is the body of the reading — 3 to 6 sentences total, drawing ONLY on the big three (Sun, Moon, Rising) plus the transit, mood, and symbols. Never return "narrative" as only the title.
+- "expandedNarrative" is a HIDDEN expansion the reader can open: return ONE entry for EACH item in the "rest of the chart" list, in that order — 1 to 2 sentences each, tying that planet/point to the dream. No pull-quote here.
+- Use ONLY the placements, transit, symbols, mood, and dream text provided. Never invent planets, signs, aspects, or houses that aren't given.
+- Tie the dream's imagery to the astrology you're given; you may gently speak to what the night seems to portend, but give no literal predictions or advice.`
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' })
@@ -99,15 +97,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 3 — build the prompt and call Anthropic
   const b = req.body as RequestBody
   const userContent = [
-    `THE DREAM to read (this is the subject — read every card over it):\n${b.transcript}`,
-    `The dream's mood: ${b.mood}. Its symbols/tags: ${b.tags.join(', ') || 'none'}.`,
+    `Dream (verbatim): ${b.transcript}`,
+    `Mood: ${b.mood}. Tags: ${b.tags.join(', ') || 'none'}.`,
     `The sky that night: ${b.transitLine}`,
-    `The big three — the cards for "narrative". Read each against the dream above, not on its own:\n${b.coreLines.map((l) => `- ${l}`).join('\n')}`,
+    `The big three (use these for "narrative"):\n${b.coreLines.map((l) => `- ${l}`).join('\n')}`,
     b.chartLines.length
-      ? `The rest of the chart — return ONE "expandedNarrative" entry per line below, in order, each tying its placement to something in the dream:\n${b.chartLines.map((l) => `- ${l}`).join('\n')}`
+      ? `The rest of the chart — return ONE "expandedNarrative" entry per line below, in order:\n${b.chartLines.map((l) => `- ${l}`).join('\n')}`
       : `The rest of the chart couldn't be computed — keep "expandedNarrative" brief and honest about that.`,
     b.symbolLines.length
-      ? `Symbols in this dream and the placements they answer to — use these to bridge the dream's images to the chart:\n${b.symbolLines.map((l) => `- ${l}`).join('\n')}`
+      ? `Symbols in this dream and what they answer to:\n${b.symbolLines.map((l) => `- ${l}`).join('\n')}`
       : `No familiar symbols surfaced this time.`,
   ].join('\n\n')
 

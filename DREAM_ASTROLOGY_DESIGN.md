@@ -184,17 +184,13 @@ Two tiers:
 - `expandedNarrative` — the **hidden expansion**: one 1–2 sentence entry per remaining
   planet/point, in the order the client sends them (see §2.5). No pull-quote.
 
-**Voice:** a tarot pull over the dream. The dream is the querent's question on the table;
-the chart and the night's sky are the cards drawn over it. Quiet, warm, literary, nocturnal
-and oracular — but **every line fuses the two**: it names an actual image, feeling, or turn
-from *this* dream and reads it through a placement or the transit. Not a horoscope, not a
-personality profile — an interpretation of one dream, with the sky as the lens.
+**Voice:** gently oracular — a soft horoscope / tarot register, weighted a touch more to
+omen and image than to clinical personality analysis — while staying grounded in the
+supplied placements.
 
 **Prompting constraint:** the model must only reference placements and symbols actually
-present in the input — no inventing planets, aspects, or dream details. Every line has to
-touch the dream **and** the astrology; a placement cited with no dream image, or a line
-about the dream with no astrology, is a failed line. This keeps the feature honest (a real
-reading of a real dream against a real chart) rather than generic horoscope filler.
+present in the input — no inventing planets or aspects. This applies to **both** tiers, and
+keeps the feature honest (a real reading of a real chart) rather than generic filler.
 
 **Persistence (durable, like the transcript):** a generated reading is written to the local
 IndexedDB `readings` cache **and** mirrored to Supabase (`public.sky_readings`, migration
