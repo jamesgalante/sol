@@ -11,6 +11,7 @@ import {
   unfollow,
   followState,
   followRequests,
+  pendingOutgoing,
   acceptRequest,
   declineRequest,
   type FollowState,
@@ -62,6 +63,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   const [requests, setRequests] = useState<ProfileRow[]>([])
   const [friends, setFriends] = useState<ProfileRow[]>([])
   const [fans, setFans] = useState<ProfileRow[]>([])
+  const [pendingOut, setPendingOut] = useState<ProfileRow[]>([])
   const [counts, setCounts] = useState<FollowCounts | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -94,6 +96,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
         following().then((f) => alive && setFriends(f))
         followers().then((f) => alive && setFans(f))
         followRequests().then((r) => alive && setRequests(r))
+        pendingOutgoing().then((r) => alive && setPendingOut(r))
         // own profile: fold anything newly earned into the synced unlock set
         const dreams = await listDreams()
         const earned = deriveUnlocks(dreams)
@@ -156,7 +159,7 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
   async function toggleFollow() {
     if (followed === 'none') {
       const r = await follow(person!.username)
-      if (!r.error) setFollowed('pending')
+      if (!r.error) setFollowed(r.status ?? 'pending')
     } else {
       // cancels a pending request or unfollows an accepted one — same row
       await unfollow(person!.id)
@@ -488,12 +491,19 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
                     @{f.username}
                   </button>
                   {f.display_name && <span className="friend-stat">{f.display_name}</span>}
-                  {!friends.some((x) => x.id === f.id) && (
+                  {friends.some((x) => x.id === f.id) ? (
+                    <span className="friend-stat unfollow-btn">following ✓</span>
+                  ) : pendingOut.some((x) => x.id === f.id) ? (
+                    <span className="friend-stat unfollow-btn">requested</span>
+                  ) : (
                     <button
                       className="quiet-btn unfollow-btn"
                       onClick={async () => {
                         const r = await follow(f.username)
-                        if (!r.error) setFriends([...friends, f])
+                        if (r.error) return
+                        // they already follow us, so this auto-accepts
+                        if (r.status === 'accepted') setFriends([...friends, f])
+                        else setPendingOut([...pendingOut, f])
                       }}
                     >
                       follow back
