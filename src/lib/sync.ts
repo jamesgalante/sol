@@ -197,7 +197,9 @@ export async function deleteCloudDream(id: string): Promise<void> {
   await supabase.from('dreams').delete().eq('id', id)
 }
 
-export async function follow(username: string): Promise<{ error?: string }> {
+export async function follow(
+  username: string,
+): Promise<{ error?: string; status?: FollowState }> {
   if (!supabase) return { error: 'offline' }
   const uid = await currentUserId()
   if (!uid) return { error: 'not signed in' }
@@ -208,11 +210,34 @@ export async function follow(username: string): Promise<{ error?: string }> {
     .maybeSingle()
   if (!target) return { error: `No one named @${username} yet.` }
   if (target.id === uid) return { error: 'That one you already follow, forever.' }
+  // mutual? if they already follow us (accepted), skip the approval queue —
+  // the insert policy allows 'accepted' exactly in this case
+  const { data: reverse } = await supabase
+    .from('follows')
+    .select('status')
+    .eq('follower', target.id)
+    .eq('followee', uid)
+    .eq('status', 'accepted')
+    .maybeSingle()
+  const status: FollowState = reverse ? 'accepted' : 'pending'
   const { error } = await supabase
     .from('follows')
-    .insert({ follower: uid, followee: target.id, status: 'pending' })
+    .insert({ follower: uid, followee: target.id, status })
   if (error && error.code !== '23505') return { error: error.message }
-  return {}
+  return { status }
+}
+
+/** Your outgoing requests still waiting on the other side. */
+export async function pendingOutgoing(): Promise<Profile[]> {
+  if (!supabase) return []
+  const uid = await currentUserId()
+  if (!uid) return []
+  const { data } = await supabase
+    .from('follows')
+    .select(`followee, profiles!follows_followee_fkey(${PROFILE_COLS})`)
+    .eq('follower', uid)
+    .eq('status', 'pending')
+  return (data ?? []).map((r: any) => r.profiles).filter(Boolean)
 }
 
 export async function unfollow(followeeId: string): Promise<void> {
