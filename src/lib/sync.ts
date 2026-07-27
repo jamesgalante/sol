@@ -368,11 +368,12 @@ export async function myBirthChart(): Promise<BirthChart | null> {
 }
 
 /** Mirror the local birth chart to the cloud (no-op offline / signed out). */
-export async function pushBirthChart(c: BirthChart): Promise<void> {
-  if (!supabase) return
+export async function pushBirthChart(c: BirthChart): Promise<{ error?: string }> {
+  if (!supabase) return {} // offline mode — local save is the whole story
   const uid = await currentUserId()
-  if (!uid) return
-  await supabase.from('birth_charts').upsert(toBirthChartRow(c, uid))
+  if (!uid) return {} // signed out — nothing to mirror yet
+  const { error } = await supabase.from('birth_charts').upsert(toBirthChartRow(c, uid))
+  return error ? { error: error.message } : {}
 }
 
 // ——— sky readings (the per-dream LLM interpretation) ———

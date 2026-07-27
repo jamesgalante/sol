@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { saveBirthChart } from '../lib/db'
 import { pushBirthChart } from '../lib/sync'
 import { searchPlaces, type GeoPlace } from '../lib/geocode'
-import { DatePicker, TimePicker, useCoarsePointer } from './DateTimePicker'
+import { DatePicker, TimePicker } from './DateTimePicker'
 import type { BirthChart } from '../lib/types'
 
 /**
@@ -41,8 +41,9 @@ export function BirthChartForm({
   const [results, setResults] = useState<GeoPlace[]>([])
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [syncError, setSyncError] = useState('')
+  const [unsynced, setUnsynced] = useState<BirthChart | null>(null)
   const skipQuery = useRef(false) // don't re-search right after a pick
-  const coarse = useCoarsePointer() // touch → native picker; desktop → themed
 
   // Debounced place search — skips the lookup right after the user picks one.
   useEffect(() => {
@@ -62,18 +63,6 @@ export function BirthChartForm({
     }, 300)
     return () => clearTimeout(id)
   }, [birthPlace])
-
-  // Open the native date/time picker on any click, not just the small icon —
-  // this mirrors the mobile tap-to-open behaviour on desktop browsers.
-  // showPicker() needs a user gesture (this click supplies it) and is absent
-  // on older browsers, so guard both.
-  function openPicker(e: MouseEvent<HTMLInputElement>) {
-    try {
-      e.currentTarget.showPicker?.()
-    } catch {
-      // Some browsers throw (e.g. cross-origin frames); fall back to focus.
-    }
-  }
 
   function pick(place: GeoPlace) {
     skipQuery.current = true
@@ -99,8 +88,15 @@ export function BirthChartForm({
       updatedAt: Date.now(),
     }
     await saveBirthChart(chart)
-    pushBirthChart(chart) // fire-and-forget cloud mirror
+    // cloud mirror — never silent: a failed sync means "this device only",
+    // which is exactly the bug that looked like "saving doesn't work"
+    const r = await pushBirthChart(chart)
     setBusy(false)
+    if (r.error) {
+      setSyncError(`Saved on this device, but cloud sync failed: ${r.error}`)
+      setUnsynced(chart)
+      return
+    }
     onSaved(chart)
   }
 
@@ -126,32 +122,11 @@ export function BirthChartForm({
     <div className="birth-form">
       <div className="birth-field">
         <span className="birth-label">date of birth</span>
-        {coarse ? (
-          <input
-            className="auth-input"
-            type="date"
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
-            onClick={openPicker}
-          />
-        ) : (
-          <DatePicker value={birthDate} onChange={setBirthDate} />
-        )}
+        <DatePicker value={birthDate} onChange={setBirthDate} />
       </div>
       <div className="birth-field">
         <span className="birth-label">time of birth</span>
-        {coarse ? (
-          <input
-            className="auth-input"
-            type="time"
-            value={birthTime}
-            disabled={timeUnknown}
-            onChange={(e) => setBirthTime(e.target.value)}
-            onClick={openPicker}
-          />
-        ) : (
-          <TimePicker value={birthTime} onChange={setBirthTime} disabled={timeUnknown} />
-        )}
+        <TimePicker value={birthTime} onChange={setBirthTime} disabled={timeUnknown} />
       </div>
       <label className="birth-check">
         <input
@@ -187,6 +162,14 @@ export function BirthChartForm({
           </ul>
         )}
       </div>
+      {syncError && unsynced && (
+        <div className="auth-error">
+          {syncError}{' '}
+          <button className="auth-toggle" onClick={() => onSaved(unsynced)}>
+            continue anyway
+          </button>
+        </div>
+      )}
       <div className="birth-actions">
         <button className="auth-btn" onClick={save} disabled={busy || !birthDate}>
           {busy ? '…' : 'save'}

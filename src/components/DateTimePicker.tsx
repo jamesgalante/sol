@@ -1,26 +1,12 @@
 /**
  * Segmented, underline-style date and time entry — `mm / dd / yyyy` and
- * `hh : mm am` — typed directly, no popover. On coarse pointers the parent
- * form keeps the native <input type="date"/"time"> (the OS wheel), which is
- * far better on phones; these are the desktop path.
+ * `hh : mm am` — typed directly on every device. No calendar to page back
+ * through, no scroll wheel: birthdays are known by heart and typed fastest.
  *
- * Both components read/write the SAME string formats the native inputs use
+ * Both components read/write the SAME string formats the native inputs used
  * ("YYYY-MM-DD", "HH:mm" 24h), emitting '' while the entry is incomplete.
  */
-import { useEffect, useRef, useState } from 'react'
-
-export function useCoarsePointer() {
-  const [coarse, setCoarse] = useState(
-    () => window.matchMedia?.('(pointer: coarse)').matches ?? false,
-  )
-  useEffect(() => {
-    const mq = window.matchMedia('(pointer: coarse)')
-    const on = () => setCoarse(mq.matches)
-    mq.addEventListener?.('change', on)
-    return () => mq.removeEventListener?.('change', on)
-  }, [])
-  return coarse
-}
+import { useRef, useState } from 'react'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const digits = (s: string) => s.replace(/\D/g, '')
@@ -77,7 +63,7 @@ export function DatePicker({
     const mi = +mm
     const di = +dd
     const yi = +yy
-    if (mm.length >= 1 && mi >= 1 && mi <= 12 && dd.length >= 1 && di >= 1 && di <= 31 && yy.length === 4 && yi > 1000) {
+    if (mi >= 1 && mi <= 12 && di >= 1 && di <= 31 && yy.length === 4 && yi > 1000) {
       onChange(`${yy}-${pad(mi)}-${pad(di)}`)
     } else {
       onChange('')
@@ -85,12 +71,43 @@ export function DatePicker({
   }
 
   return (
-    <div className="dt-seg" role="group" aria-label="birth date">
-      <Part value={m} placeholder="mm" width={2} label="month" onInput={(v) => { setM(v); emit(v, d, y); if (v.length === 2) dRef.current?.focus() }} />
+    <div className="dt-seg" role="group" aria-label="date">
+      <Part
+        value={m}
+        placeholder="mm"
+        width={2}
+        label="month"
+        onInput={(v) => {
+          setM(v)
+          emit(v, d, y)
+          if (v.length === 2) dRef.current?.focus()
+        }}
+      />
       <span className="dt-sep" aria-hidden>/</span>
-      <Part value={d} placeholder="dd" width={2} label="day" inputRef={dRef} onInput={(v) => { setD(v); emit(m, v, y); if (v.length === 2) yRef.current?.focus() }} />
+      <Part
+        value={d}
+        placeholder="dd"
+        width={2}
+        label="day"
+        inputRef={dRef}
+        onInput={(v) => {
+          setD(v)
+          emit(m, v, y)
+          if (v.length === 2) yRef.current?.focus()
+        }}
+      />
       <span className="dt-sep" aria-hidden>/</span>
-      <Part value={y} placeholder="yyyy" width={4} label="year" inputRef={yRef} onInput={(v) => { setY(v); emit(m, d, v) }} />
+      <Part
+        value={y}
+        placeholder="yyyy"
+        width={4}
+        label="year"
+        inputRef={yRef}
+        onInput={(v) => {
+          setY(v)
+          emit(m, d, v)
+        }}
+      />
     </div>
   )
 }
@@ -114,19 +131,40 @@ export function TimePicker({
   function emit(hh: string, mm: string, isPm: boolean) {
     const hi = +hh
     const mi = +mm
-    if (hh.length >= 1 && hi >= 1 && hi <= 12 && mm.length === 2 && mi <= 59) {
-      const h24out = (hi % 12) + (isPm ? 12 : 0)
-      onChange(`${pad(h24out)}:${pad(mi)}`)
+    if (hi >= 1 && hi <= 12 && mm.length === 2 && mi <= 59) {
+      onChange(`${pad((hi % 12) + (isPm ? 12 : 0))}:${pad(mi)}`)
     } else {
       onChange('')
     }
   }
 
   return (
-    <div className="dt-seg" role="group" aria-label="birth time">
-      <Part value={h} placeholder="hh" width={2} disabled={disabled} label="hour" onInput={(v) => { setH(v); emit(v, min, pm); if (v.length === 2 || +v > 1) minRef.current?.focus() }} />
+    <div className="dt-seg" role="group" aria-label="time">
+      <Part
+        value={h}
+        placeholder="hh"
+        width={2}
+        disabled={disabled}
+        label="hour"
+        onInput={(v) => {
+          setH(v)
+          emit(v, min, pm)
+          if (v.length === 2 || +v > 1) minRef.current?.focus()
+        }}
+      />
       <span className="dt-sep" aria-hidden>:</span>
-      <Part value={min} placeholder="mm" width={2} disabled={disabled} label="minutes" inputRef={minRef} onInput={(v) => { setMin(v); emit(h, v, pm) }} />
+      <Part
+        value={min}
+        placeholder="mm"
+        width={2}
+        disabled={disabled}
+        label="minutes"
+        inputRef={minRef}
+        onInput={(v) => {
+          setMin(v)
+          emit(h, v, pm)
+        }}
+      />
       <button
         type="button"
         className="dt-ampm"
