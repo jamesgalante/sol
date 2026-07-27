@@ -33,16 +33,19 @@ export function SkyPanel({
     [dream, natal, transit],
   )
 
-  // The prose — both tiers (main + expansion). null → still resolving (show the
-  // loader). Resolves, in order, from the local IndexedDB cache, the durable
-  // cloud copy, the allowlisted LLM path, or the local reading. Any failure /
-  // not-allowlisted / offline falls back to local — the app never requires the
-  // network.
+  // The prose — both tiers (main + expansion). Resolves, in order, from the local
+  // IndexedDB cache, the durable cloud copy, then the LLM. There is NO local
+  // template fallback: if the LLM path fails we surface the reason (see `error`)
+  // rather than silently rendering a generic reading, which read as the model's
+  // output and was more confusing than an honest failure.
+  // reading === null && error === null → still resolving (show the loader).
   const [reading, setReading] = useState<CachedReading | null>(null)
+  const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     if (!natal || !localReading) return
     let cancelled = false
     setReading(null) // show the loader while we resolve
+    setError(null)
     ;(async () => {
       // 1 — local cache (offline-first, instant)
       const cached = await getCachedReading(dream.id)
@@ -60,33 +63,26 @@ export function SkyPanel({
           return setReading(cloud)
         }
       } catch {
-        /* offline / no row — fall through */
+        /* offline / no row — fall through to the LLM */
       }
 
       // 3 — remote synthesis: any signed-in user attempts it; the server decides.
       // Allowlisted emails are unlimited, everyone else gets one complimentary
-      // reading — an exhausted user gets a 402 (no Anthropic spend) and falls
-      // through to local. On success, persist to both local + cloud.
+      // reading. Any failure — not signed in, quota exhausted, offline, synthesis
+      // error — surfaces an informative message instead of a canned reading.
       const email = (await supabase?.auth.getSession())?.data.session?.user.email
-      if (email) {
-        try {
-          const remote = await fetchRemoteNarrative(dream, natal, transit)
-          if (cancelled) return
-          await saveCachedReading(dream.id, remote)
-          void pushReading(dream.id, remote) // fire-and-forget cloud mirror
-          if (cancelled) return
-          return setReading(remote)
-        } catch {
-          /* fall through to the local reading */
-        }
-      }
-
-      // 4 — deterministic local reading (not persisted)
-      if (!cancelled) {
-        setReading({
-          narrative: localReading.narrative,
-          expandedNarrative: localReading.expandedNarrative,
-        })
+      if (cancelled) return
+      if (!email) return setError('Sign in to get a Sky Reading of this dream.')
+      try {
+        const remote = await fetchRemoteNarrative(dream, natal, transit)
+        if (cancelled) return
+        await saveCachedReading(dream.id, remote)
+        void pushReading(dream.id, remote) // fire-and-forget cloud mirror
+        if (cancelled) return
+        return setReading(remote)
+      } catch (e) {
+        if (cancelled) return
+        setError(readingErrorMessage(e))
       }
     })()
     return () => {
@@ -116,16 +112,21 @@ export function SkyPanel({
     )
   }
 
-  // Reading still resolving (cache / LLM / local) — SkyLoader is the pending state.
-  if (reading === null) return <SkyLoader />
+  // Reading still resolving (cache / cloud / LLM) — SkyLoader is the pending
+  // state. Once resolved we have either `reading` or `error`.
+  if (reading === null && error === null) return <SkyLoader />
 
   const extras = localReading.placements.filter(
     (p) => p.point !== 'Sun' && p.point !== 'Moon' && p.point !== 'ASC',
   )
   // The whole-chart expansion: its own narrative, the extra-planet cards, and
-  // the symbol key. Only offer the drop-down if there's something inside it.
+  // the symbol key. Only when we have a real reading (not an error) and there's
+  // something inside it.
   const hasExpansion =
-    reading.expandedNarrative.length > 0 || extras.length > 0 || localReading.symbolKeys.length > 0
+    reading !== null &&
+    (reading.expandedNarrative.length > 0 ||
+      extras.length > 0 ||
+      localReading.symbolKeys.length > 0)
 
   return (
     <div className="sky-panel">
@@ -139,13 +140,22 @@ export function SkyPanel({
         {transit.retrogrades.length > 0 && <> · {transit.retrogrades.join(', ')} retrograde</>}
       </p>
 
-      {/* 2 — the reading (Sun / Moon / Rising) */}
-      <p className="sky-quote">{reading.narrative[0]}</p>
-      {reading.narrative.slice(1).map((para, i) => (
-        <p key={i} className="transcript sky-para">
-          {para}
+      {/* 2 — the reading (Sun / Moon / Rising), or an honest error if it failed */}
+      {error !== null && (
+        <p className="sky-error" role="alert">
+          {error}
         </p>
-      ))}
+      )}
+      {reading !== null && (
+        <>
+          <p className="sky-quote">{reading.narrative[0]}</p>
+          {reading.narrative.slice(1).map((para, i) => (
+            <p key={i} className="transcript sky-para">
+              {para}
+            </p>
+          ))}
+        </>
+      )}
 
       {/* 3 — placements at play (the big three) */}
       <div className="stat-heading">Placements at play</div>
@@ -170,7 +180,7 @@ export function SkyPanel({
           </button>
           {expanded && (
             <div className="sky-expand-body">
-              {reading.expandedNarrative.map((para, i) => (
+              {reading?.expandedNarrative.map((para, i) => (
                 <p key={i} className="transcript sky-para">
                   {para}
                 </p>
@@ -208,6 +218,19 @@ export function SkyPanel({
       )}
     </div>
   )
+}
+
+// Map a thrown synthesis error to a message worth showing the reader. The
+// thrown strings come from fetchRemoteNarrative / api/sky-reading.ts.
+function readingErrorMessage(e: unknown): string {
+  const msg = e instanceof Error ? e.message : ''
+  if (msg === 'offline') {
+    return 'A Sky Reading needs a connection — reconnect and reopen this dream.'
+  }
+  if (msg.includes('402')) {
+    return "You've used your free Sky Reading."
+  }
+  return "Couldn't read your sky just now. Try again in a moment."
 }
 
 // Hardcoded star field (no Math.random — the app forbids it); {top, left} in %,

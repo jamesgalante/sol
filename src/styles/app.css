@@ -1810,6 +1810,11 @@ textarea {
 .sky-para {
   margin-bottom: 1rem;
 }
+.sky-error {
+  font-size: var(--text-sm);
+  color: var(--danger);
+  margin: 1.5rem 0 1rem;
+}
 .sky-cards {
   display: flex;
   flex-wrap: wrap;
