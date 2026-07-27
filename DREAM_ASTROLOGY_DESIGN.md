@@ -146,11 +146,14 @@ Sans for UI, Geist Mono for tags/eyebrows):**
   for birth-chart entry in `src/screens/Me.tsx`/`src/screens/Profile.tsx` (§1), prompting
   birth data entry with a one-line explanation of why it's needed.
 - **Chart set up, reading not yet generated** → the `SkyLoader` (breathing moon + twinkling
-  stars, cycling captions) while local cache → cloud → LLM → local resolves — no spinner,
+  stars, cycling captions) while local cache → cloud → LLM resolves — no spinner,
   matches the app's calm pacing.
-- **Reading generation fails** (LLM/network) → the local, deterministic `skyReading()`
-  fills **both** tiers (main + expansion) from data the app computed independently, so the
-  page never blocks on the network. Sections 1, 2, and 4 are computable regardless.
+- **Reading generation fails** (LLM/network/quota/not signed in) → an honest, informative
+  error in place of the reading prose (`readingErrorMessage()` in `SkyPanel.tsx`). There is
+  **no** local template fallback: a canned deterministic reading read as the model's own
+  output and confused rather than helped. The deterministic sections — the sky that night
+  (§1) and the placements/natal summary (§2 chart data) — still render, since they're
+  computed from the user's own chart and are always available.
 
 ---
 
@@ -166,14 +169,18 @@ splits them into two labeled sets so the model knows which feeds which tier:
 - Transiting positions at `dream.createdAt`, especially Moon sign/phase.
 
 **Output:** structured JSON, not free text —
-`{ narrative: string[], expandedNarrative: string[] }` from the endpoint (schema
-`minItems: 2` on each), widened to the full `SkyReading`
-(`{ narrative, expandedNarrative, placements, symbolKeys }`) on the client, where
-`placements`/`symbolKeys` stay deterministic. Two tiers:
+`{ narrative: string[], expandedNarrative: string[] }` from the endpoint, widened to the
+full `SkyReading` (`{ narrative, expandedNarrative, placements, symbolKeys }`) on the client,
+where `placements`/`symbolKeys` stay deterministic. The schema carries **no array
+constraints** — `minItems` is rejected by structured outputs on a raw `messages.create()`
+call (it isn't stripped the way the `zod` helpers do it) and 400s the whole request. The
+"title + body" minimum is enforced by the prompt and by the client guard in
+`skyReadingRemote.ts` (a `< 2`-item `narrative` is rejected, surfacing the error state).
+Two tiers:
 - `narrative` — the **main reading**. `narrative[0]` is the serif pull-quote title;
   `narrative[1..]` is the 3–6 sentence body, big three only. It must carry the title **plus**
-  the body (the client rejects a title-only response to the local fallback) — otherwise the
-  main reading renders as just the title with no analysis.
+  the body (the client rejects a title-only response) — otherwise the main reading would
+  render as just the title with no analysis.
 - `expandedNarrative` — the **hidden expansion**: one 1–2 sentence entry per remaining
   planet/point, in the order the client sends them (see §2.5). No pull-quote.
 
@@ -189,9 +196,10 @@ keeps the feature honest (a real reading of a real chart) rather than generic fi
 IndexedDB `readings` cache **and** mirrored to Supabase (`public.sky_readings`, migration
 `010`, keyed by dream id, own-row RLS, `on delete cascade` from `dreams`). On view the
 narrative resolves local cache → cloud (`readingForDream`) → remote synthesis
-(`fetchRemoteNarrative`, then `pushReading`) → deterministic local `skyReading()`. So a
-reading survives across devices and browser eviction without a repeat paid LLM call, and a
-transcript edit drops both copies (`clearCachedReading` + `deleteCloudReading`).
+(`fetchRemoteNarrative`, then `pushReading`); a failure at the last step surfaces an error
+rather than a local reading. So a reading survives across devices and browser eviction
+without a repeat paid LLM call, and a transcript edit drops both copies
+(`clearCachedReading` + `deleteCloudReading`).
 `placements`/`symbolKeys` are never persisted — they recompute on view.
 
 ---

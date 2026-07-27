@@ -43,13 +43,17 @@ interface RequestBody {
 // Structured-output schema. `narrative` is the main (Sun/Moon/Rising) reading —
 // item[0] is a one-line title, item[1..] the body. `expandedNarrative` is the
 // hidden whole-chart expansion, one entry per remaining placement.
+//
+// NOTE: no `minItems` here. Structured outputs rejects array constraints like
+// minItems (raw messages.create() doesn't strip them the way the zod helpers do),
+// and sending one 400s the whole request. The "at least 2 items" rule is enforced
+// by the prompt below and by the <2-item guard in skyReadingRemote.ts, which
+// rejects the response and surfaces an error rather than an empty main narrative.
 const SCHEMA = {
   type: 'object',
   properties: {
-    // ≥2: the title plus at least one body item — a model that returns the title
-    // alone would leave the main reading visibly empty.
-    narrative: { type: 'array', items: { type: 'string' }, minItems: 2 },
-    expandedNarrative: { type: 'array', items: { type: 'string' }, minItems: 2 },
+    narrative: { type: 'array', items: { type: 'string' } },
+    expandedNarrative: { type: 'array', items: { type: 'string' } },
   },
   required: ['narrative', 'expandedNarrative'],
   additionalProperties: false,
