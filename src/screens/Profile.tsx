@@ -2,7 +2,7 @@
 // Your own profile is editable in place. Pinned dreams are the deliberately
 // public shelf — anyone signed in can read them here.
 import { useEffect, useMemo, useState } from 'react'
-import { cloudEnabled, supabase } from '../lib/supabase'
+import { cloudEnabled } from '../lib/supabase'
 import {
   follow,
   followCounts,
@@ -536,14 +536,8 @@ export function Profile({ username, onNavigate }: { username: string; onNavigate
 
       {mine && (
         <div className="detail-actions">
-          <button
-            className="quiet-btn"
-            onClick={async () => {
-              await supabase?.auth.signOut()
-              onNavigate({ name: 'circle' })
-            }}
-          >
-            sign out
+          <button className="quiet-btn" onClick={() => onNavigate({ name: 'settings' })}>
+            settings
           </button>
         </div>
       )}
